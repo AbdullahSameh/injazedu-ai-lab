@@ -240,6 +240,26 @@ With multiple developers:
 
 ---
 
+## Constitution Alignment (`.specify/memory/constitution.md` v1.0.0)
+
+- **Principle V — Basic Testing Only.** Generate test tasks for these four kinds and no
+  others: deterministic unit tests (normalizer, hashes, answer/option derivation, statistical
+  formulas), `lab:health` integration checks including the two inverted checks (write to the
+  MySQL snapshot MUST fail; `SELECT` on `users` MUST fail), guardrail/PII tests over the
+  forbidden-table list, and golden eval-set runs after any model / prompt / normalization /
+  embedding / chunking change. Do NOT generate coverage targets, e2e suites, or mocking layers.
+- **Principle III — Project-by-Project.** Every task belongs to exactly one active project
+  (P0…P9). Do not generate tasks from a project's explicit out-of-scope list.
+- **Principle IV — Code Quality.** Tasks touching AI output must include a JSON Schema
+  validation task; tasks touching embeddings must set `embedding_config_version`; tasks
+  touching imports/batches must include an idempotency task and an error-recording task.
+- **Principle VI — UX Consistency.** Tasks producing a metric or dashboard must include
+  showing `n` + `snapshot_taken_at`, priority ordering, and AI-output labelling.
+- **Data Protection (non-waivable).** Any task touching the production snapshot must run
+  through `lab_ro` (11 allowed tables) and must never introduce a PII column into the Lab DB.
+
+---
+
 ## Notes
 
 - [P] tasks = different files, no dependencies

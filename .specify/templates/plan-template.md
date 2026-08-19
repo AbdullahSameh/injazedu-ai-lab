@@ -31,7 +31,19 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+*Source: `.specify/memory/constitution.md` v1.0.0. Mark each gate PASS / FAIL / N-A with
+one line of evidence. Any FAIL must be removed or justified in Complexity Tracking.*
+
+| # | Gate | Principle | Status |
+|---|------|-----------|--------|
+| 1 | Feature names the process it improves and which layer (code / SQL / embeddings / LLM / human) does each part; no AI action outside suggest-classify-rank-flag-draft-explain; no source question deleted | I | |
+| 2 | Spec cites the governing plan section; every schema fact traced to `docs/schema/injazedu-db-schema.md` or a profiling result; any deviation has a numbered ADR in `docs/ADR/` | II | |
+| 3 | Belongs to exactly one active project (P0…P9); declared dependencies accepted; nothing from another project's scope; Go/No-Go limits stated | III | |
+| 4 | Laravel owns migrations, FastAPI stateless; metrics computed deterministically (LLM explains, never computes); AI output schema-validated; prompts versioned; `embedding_config_version` set; jobs idempotent; anomalies recorded not swallowed | IV | |
+| 5 | Tests limited to: deterministic unit tests, `lab:health` integration checks (incl. the two inverted checks), guardrail/PII tests, golden eval sets. No coverage targets or e2e suites | V | |
+| 6 | Arabic RTL; every metric shows `n` and `snapshot_taken_at`; suppression thresholds (n<10 / n<30 / n≥30) applied; AI output labelled as recommendation; human override recorded; queues ordered by priority | VI | |
+| 7 | Fits the ~11–13 GB memory budget; LLM calls confined to the uncertainty band with a counter and a cap; cheap layers run first; model/dimension choices backed by a recorded benchmark; batches resumable | VII | |
+| 8 | **Non-waivable:** Production read-only; `lab_ro` grants limited to the 11 allowed tables; no PII in the Lab DB (`student_ref` HMAC only); `PRODUCTION_WRITE_ENABLED=false`; snapshot handling and backup rules honoured | Data Protection | |
 
 ## Project Structure
 
