@@ -1,6 +1,22 @@
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+Active feature: **001-lab-foundation-bootstrap** — P0 AI Lab Foundation, المراحل 0–2
+(safety preflight · repository boundary · PostgreSQL 17 + pgvector data layer).
+
+Read these before writing code for it:
+
+- Plan: `specs/001-lab-foundation-bootstrap/plan.md`
+- Spec: `specs/001-lab-foundation-bootstrap/spec.md` (30 FRs, 12 SCs, Acceptance Gate vs P0 §13)
+- Research: `specs/001-lab-foundation-bootstrap/research.md` (environment measured 2026-08-20)
+- Contracts: `specs/001-lab-foundation-bootstrap/contracts/` (three verification scripts)
+- Quickstart: `specs/001-lab-foundation-bootstrap/quickstart.md`
+
+Environment facts measured 2026-08-20 — do not assume otherwise:
+`/bin/bash` is 3.2 (no bash 4+ syntax) · Compose v5.1.2 · host `psql` is 14 vs server 17, so run
+SQL in-container · port 5432 is held by `postgresql@14` (untouchable), 5433 free · OrbStack
+installed, daemon stopped · iCloud Desktop & Documents sync is ON.
+
+⛔ **FileVault is Off.** The increment cannot be accepted until encryption is on or converting and
+the recovery key is attested in `docs/runbooks/safety.md` (P0 §8 Item A, non-waivable).
 <!-- SPECKIT END -->
 
 ## Project governance

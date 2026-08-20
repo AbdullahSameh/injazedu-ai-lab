@@ -1,0 +1,63 @@
+# .gitignore — the committed boundary of the Lab repository.
+#
+# This file is the mechanical half of the constitution's data-protection rules:
+# what must never be committed is made uncommittable-by-default here, rather
+# than remembered. Proven by scripts/verify-repo-boundary.sh (13 assertions,
+# including the inverted case that .env.example must NOT be ignored).
+#
+# Categories follow specs/001-lab-foundation-bootstrap/data-model.md §4.
+
+# --- 1. Environment files (secrets) ---
+.env
+.env.*
+!.env.example
+
+# --- 2. Database dumps: plain ---
+*.sql
+# Exception: init.sql is committed source (the Lab DB's bootstrap), not a dump.
+!infrastructure/postgres/init.sql
+
+# --- 3. Database dumps: compressed ---
+*.sql.gz
+*.sql.bz2
+*.sql.xz
+*.dump
+*.dmp
+*.backup
+*.pgdump
+
+# --- 4. PHP dependencies ---
+vendor/
+
+# --- 5. JavaScript dependencies ---
+node_modules/
+
+# --- 6. Python virtual environments ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# --- 7. Generated storage (documents, extracted text, exports) ---
+storage/documents/*
+storage/extracted/*
+data/exports/*
+data/fixtures/*
+!storage/documents/.gitkeep
+!storage/extracted/.gitkeep
+!data/exports/.gitkeep
+!data/fixtures/.gitkeep
+
+# --- 8. Application logs ---
+*.log
+logs/
+
+# --- 9. OS noise ---
+.DS_Store
+Thumbs.db
+
+# --- 10. Snapshot containment ---
+# The production snapshot is NEVER copied into the repository
+# (docs/runbooks/snapshot.md). This directory stays empty except .gitkeep.
+data/snapshots/*
+!data/snapshots/.gitkeep
