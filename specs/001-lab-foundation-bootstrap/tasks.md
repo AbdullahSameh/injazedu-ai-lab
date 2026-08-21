@@ -131,10 +131,10 @@ requires the ADR to exist *before* the code acting on the deviation (research R9
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [X] T034 Run the full `specs/001-lab-foundation-bootstrap/quickstart.md` end to end on this machine and confirm the combined chain reaches `INCREMENT GREEN` — done 2026-08-21: preflight 5/5, boundary 13/13, data layer 7/7, `INCREMENT GREEN`
-- [ ] T035 Reboot the machine, then re-run `scripts/verify-data-layer.sh` to confirm the marker row survives a **full machine restart**, not only a service restart (SC-007, second half) — **operator action: reboot required; re-run the script afterwards (no `--with-restart` needed)**
+- [X] T035 Reboot the machine, then re-run `scripts/verify-data-layer.sh` to confirm the marker row survives a **full machine restart**, not only a service restart (SC-007, second half) — **operator action: reboot required; re-run the script afterwards (no `--with-restart` needed)**
 - [X] T036 [P] Confirm SC-004 and SC-012 by inspection — no real data file and no secret value exists in tracked content, and zero rows were read from the production snapshot during the entire increment — done 2026-08-21: tracked content clean, `.env` untracked/ignored, no MySQL/snapshot code path anywhere in the increment
 - [X] T037 Update the *Acceptance Gate — Mapping to P0 §13* table in `spec.md` with observed results, and report the increment as **partial P0** with its closed/advanced/vacuous/untouched tally (FR-029) — done 2026-08-21: observed results recorded in spec.md; tally unchanged at 3 closed · 3 advanced · 2 vacuous · 11 untouched
-- [ ] T038 [OPERATOR] Begin P0 §8 Item L — set a password on the native MySQL `root` account. Due before المرحلة 3 and it may break other local projects that connect as `root`, so audit their `.env` files first. Started now because it has lead time, not because it belongs to this increment — **audit done 2026-08-21: 31 project `.env` files under `~/Projects` connect as `root` with (presumably) empty password; `root@localhost` uses `caching_sha2_password`. Setting the password will break all 31 until each `.env` receives it — operator decision pending**
+- [X] T038 [OPERATOR] Resolve P0 §8 Item L — a password on the native MySQL `root` account. Audit done 2026-08-21: 31 project `.env` files under `~/Projects` connect as `root` with an empty password; `root@localhost` uses `caching_sha2_password` with an empty `authentication_string`; setting a password breaks all 31 until each `.env` receives it — **operator decision 2026-08-21: keep the account password-less. Item L is now optional and does not block المرحلة 3 — recorded as `docs/ADR/ADR-021.md` with the accepted residual risk, the unchanged compensating controls (FileVault, loopback bind, root never stored in a file, ADR-020's eleven-table grant), and four re-evaluation triggers.** Nothing in this increment enforced a root password, so no script or artifact changed
 
 ---
 
@@ -212,7 +212,8 @@ US1 alone is genuinely shippable: it closes a live exposure by making it visible
 
 Of P0 §13's 19 acceptance boxes: **3 closed, 3 advanced, 2 vacuous, 11 untouched**. Reporting this
 as "P0 complete" would be a constitutional violation. The next increment is المرحلة 3 — read-only
-snapshot access and the ADR-020 grant — and T038 starts its prerequisite now.
+snapshot access and the ADR-020 grant — and T038 closed its last human prerequisite (ADR-021: Item L
+is optional, so المرحلة 3 is unblocked).
 
 ---
 
@@ -226,7 +227,8 @@ snapshot access and the ADR-020 grant — and T038 starts its prerequisite now.
 - **Principle II — Traceability.** T022/T023 are sequenced before T025 precisely so no deviation is
   acted on before its ADR exists.
 - **Principle III — Scope.** No task creates an application, service, model, snapshot connection,
-  grant, or README. T038 is explicitly marked as belonging to the *next* increment.
+  grant, or README. T038 only records a governance decision (ADR-021) about the *next* increment; it
+  builds nothing here.
 - **Principle IV — Loud failures.** T030 fails on an unset memory limit rather than passing; T010
   treats an unparseable encryption state as `Off`; T017 does not rewrite history it has no evidence
   needs rewriting.

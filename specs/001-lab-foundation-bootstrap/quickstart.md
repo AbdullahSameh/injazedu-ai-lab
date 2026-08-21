@@ -85,6 +85,8 @@ No snapshot connection, no `lab_ro` account, no application, no service, no mode
 renders 2 vacuously true, and leaves 11 untouched — see the *Acceptance Gate* table in `spec.md`.
 Reporting this as "P0 complete" would be a constitutional violation.
 
-**Next increment**: المرحلة 3 — read-only snapshot access and the ADR-020 grant. Its own blocker,
-§8 Item L (putting a password on the native database's `root` account), should be started now,
-because it may break other local projects that connect as `root`.
+**Next increment**: المرحلة 3 — read-only snapshot access and the ADR-020 grant. It has **no**
+outstanding human blocker: §8 Item L (a password on the native database's `root` account) is
+**optional** under ADR-021 — the account stays password-less, the residual risk is accepted there,
+and the compensating controls (FileVault, loopback bind, root never stored in a file, the eleven-
+table `lab_ro` grant) are unchanged.

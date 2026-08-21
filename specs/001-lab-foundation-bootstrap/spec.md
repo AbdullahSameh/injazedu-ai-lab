@@ -27,7 +27,7 @@ This specification covers **only the first three phases** of the P0 plan. Read t
 
 ```text
 Read-only snapshot access / the lab_ro grant   ← المرحلة 3
-Setting a password on the MySQL root account   ← Item L, "before المرحلة 3"
+Setting a password on the MySQL root account   ← Item L — optional, ADR-021
 Ollama and the two models                      ← المرحلة 4
 The Laravel application and Filament panel     ← المرحلة 5
 The FastAPI service and the embedding contract ← المرحلة 6
@@ -271,7 +271,7 @@ re-derivation. Status meanings:
 
 **Scope reading**
 
-- **Confirmed 2026-08-20**: this increment is **المرحلة 0, 1, and 2** of the P0 plan. The boundary is deliberate — these three phases touch no production data and create no credential, so the safety foundation is accepted and proven *before* any account exists against the snapshot. المرحلة 3 (read-only snapshot access and the `lab_ro` grant) is the next increment, and it carries the unmet human prerequisite Item L (setting a password on the native database's administrative account).
+- **Confirmed 2026-08-20**: this increment is **المرحلة 0, 1, and 2** of the P0 plan. The boundary is deliberate — these three phases touch no production data and create no credential, so the safety foundation is accepted and proven *before* any account exists against the snapshot. المرحلة 3 (read-only snapshot access and the `lab_ro` grant) is the next increment, and it carries **no unmet human prerequisite**: Item L (setting a password on the native database's administrative account) was resolved as **optional** by ADR-021 on 2026-08-21 — the account stays password-less and the residual risk is accepted there.
 
 **Environment (measured 2026-08-18, per §2 of the P0 plan)**
 
@@ -296,7 +296,8 @@ re-derivation. Status meanings:
 **Boundaries**
 
 - Human decision items from §8 of the P0 plan that fall inside these phases — enabling encryption and storing its recovery key (Item A), confirming the working directory is unsynced (Item B) — are prerequisites the operator performs; this increment verifies and records them, it does not perform them.
-- Human decision items scheduled for later phases — setting a password on the native database's administrative account (Item L), the language-runtime linking decision (Item D), snapshot refresh cadence (Item E) — remain open and are explicitly not resolved here.
+- Item L (a password on the native database's administrative account) was **resolved as optional** by ADR-021 — the account stays password-less, the compensating controls are unchanged, and المرحلة 3 is not blocked by it. This increment records that decision; it changes nothing it built.
+- Human decision items scheduled for later phases — the language-runtime linking decision (Item D), snapshot refresh cadence (Item E) — remain open and are explicitly not resolved here.
 - Nothing in this increment reads the production snapshot. The first read is defined in المرحلة 3.
 
 ## Dependencies
@@ -317,4 +318,4 @@ A running Lab database on 5433 with both required capabilities, surviving restar
 An environment template whose keys later phases fill in
 ```
 
-Still open when this increment ends, by design: no account exists against the production snapshot, no allowlist grant has been issued, the administrative account of the native database service still has no password (Item L, due before المرحلة 3), and the snapshot refresh cadence is undecided (Item E, due before P1).
+Still open when this increment ends, by design: no account exists against the production snapshot, no allowlist grant has been issued, the administrative account of the native database service has no password — deliberately, and permanently unless a re-evaluation trigger fires (Item L is optional under ADR-021, so it does not block المرحلة 3) — and the snapshot refresh cadence is undecided (Item E, due before P1).
