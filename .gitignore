@@ -41,6 +41,8 @@ node_modules/
 venv/
 __pycache__/
 *.pyc
+dist/
+*.egg-info/
 
 # --- 7. Generated storage (documents, extracted text, exports) ---
 storage/documents/*

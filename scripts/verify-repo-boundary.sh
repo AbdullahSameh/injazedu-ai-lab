@@ -11,6 +11,9 @@
 # add` reports nothing, the working tree looks clean, and it never enters history.
 # Assertion 15: .DS_Store is no longer tracked (FR-013).
 # Assertion 16: data/snapshots/ contains nothing but .gitkeep (FR-012).
+# Assertions 17–19 (003-service-health-guardrails, FR-026): the service's env
+# file is ignored, its template is NOT (inverted, like the two existing
+# templates), and no .env file's pepper value appears in tracked content.
 #
 # Behavioural guarantees: creates and deletes nothing, does not touch the index.
 # check-ignore operates on path strings, so no forbidden file is materialised.
@@ -61,9 +64,12 @@ CAT_NAME[10]="os noise";           CAT_PATH[10]=".DS_Store";               CAT_I
 CAT_NAME[11]="app env template";   CAT_PATH[11]="apps/lab/.env.example";   CAT_INVERT[11]=1
 CAT_NAME[12]="committed sql";      CAT_PATH[12]="sql/profiling/q01.sql";   CAT_INVERT[12]=1
 CAT_NAME[13]="dump by location";   CAT_PATH[13]="data/snapshots/x.sql";    CAT_INVERT[13]=0
+# 17-18: the service's env pair — same rule as the two templates above.
+CAT_NAME[14]="service env file";    CAT_PATH[14]="apps/ai-service/.env";         CAT_INVERT[14]=0
+CAT_NAME[15]="service env template"; CAT_PATH[15]="apps/ai-service/.env.example"; CAT_INVERT[15]=1
 
 i=0
-while [ "$i" -lt 14 ]; do
+while [ "$i" -lt 16 ]; do
     name=${CAT_NAME[$i]}
     path=${CAT_PATH[$i]}
     invert=${CAT_INVERT[$i]}
@@ -115,7 +121,22 @@ else
     note "remove the file; see docs/runbooks/snapshot.md (containment rule)"
 fi
 
+# --- assertion 19: the pepper appears in no tracked content (FR-026) --------
+# Reads the value out of the untracked env file; never prints it. An empty
+# value (pepper not yet generated) is a skip, not a pass — the assertion only
+# means something once T017 has run.
+pepper=$(sed -n 's/^STUDENT_REF_PEPPER=//p' apps/lab/.env 2>/dev/null | tr -d '\r"'"'"' ')
+if [ -z "$pepper" ]; then
+    note "pepper containment" "STUDENT_REF_PEPPER is empty in apps/lab/.env — assertion skipped"
+elif git grep -q -F "$pepper" -- . >/dev/null 2>&1; then
+    fail "pepper containment" "the pepper value appears in tracked content"
+    note "remediation: remove it from the tracked file and rotate nothing —"
+    note "the pepper is never regenerated; scrub the file and recommit"
+else
+    ok "pepper containment" "STUDENT_REF_PEPPER absent from all tracked content"
+fi
+
 # --- verdict -----------------------------------------------------------------
-verdict "BOUNDARY VERIFIED — 11 categories, 3 inverted cases, 0 failures" \
-        "BOUNDARY BROKEN" 16
+verdict "BOUNDARY VERIFIED — 13 categories, 4 inverted cases, pepper contained, 0 failures" \
+        "BOUNDARY BROKEN" 19
 exit $?

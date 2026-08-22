@@ -3,6 +3,18 @@
 namespace App\Providers;
 
 use App\Exceptions\ReadOnlyViolation;
+use App\Support\Health\AiServiceCheck;
+use App\Support\Health\AiServiceDatabaseCheck;
+use App\Support\Health\AiServiceRuntimeSnapshot;
+use App\Support\Health\ChatModelCheck;
+use App\Support\Health\EmbeddingModelCheck;
+use App\Support\Health\ForbiddenTableCheck;
+use App\Support\Health\HealthMatrix;
+use App\Support\Health\LabDatabaseCheck;
+use App\Support\Health\QueueExecutionCheck;
+use App\Support\Health\SourceQuestionsCheck;
+use App\Support\Health\SourceWriteCheck;
+use App\Support\Health\VectorRoundTripCheck;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,7 +25,24 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(AiServiceRuntimeSnapshot::class);
+
+        $this->app->singleton(HealthMatrix::class, function ($app) {
+            $runtime = $app->make(AiServiceRuntimeSnapshot::class);
+
+            return new HealthMatrix([
+                $app->make(LabDatabaseCheck::class),
+                $app->make(AiServiceCheck::class),
+                $app->make(QueueExecutionCheck::class),
+                $app->make(AiServiceDatabaseCheck::class),
+                $app->make(ChatModelCheck::class),
+                $app->make(EmbeddingModelCheck::class),
+                $app->make(VectorRoundTripCheck::class),
+                $app->make(SourceQuestionsCheck::class),
+                $app->make(SourceWriteCheck::class),
+                $app->make(ForbiddenTableCheck::class),
+            ], $runtime);
+        });
     }
 
     /**

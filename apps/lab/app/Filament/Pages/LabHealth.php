@@ -2,14 +2,10 @@
 
 namespace App\Filament\Pages;
 
+use App\Support\Health\CheckResult;
+use App\Support\Health\HealthMatrix;
 use Filament\Pages\Page;
 
-/**
- * Stated placeholder (FR-018, data-model.md §7). المرحلة 7 owns this page's
- * content. No status indicator is fabricated here, and no locale is locked
- * in — P1's first reviewer screen brings Arabic + RTL rather than unpicking
- * a decision made in this increment.
- */
 class LabHealth extends Page
 {
     protected string $view = 'filament.pages.lab-health';
@@ -19,4 +15,18 @@ class LabHealth extends Page
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-beaker';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Lab';
+
+    /** @var array<int, array<string, int|string>> */
+    public array $results = [];
+
+    public bool $hasRun = false;
+
+    public function runHealth(HealthMatrix $matrix): void
+    {
+        $this->results = array_map(
+            fn (CheckResult $result) => $result->toArray(),
+            $matrix->run(),
+        );
+        $this->hasRun = true;
+    }
 }
