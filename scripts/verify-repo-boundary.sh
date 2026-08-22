@@ -4,12 +4,13 @@
 # Implements FR-015 (proving FR-010…FR-013). Gates SC-003, SC-004.
 # Contract: specs/001-lab-foundation-bootstrap/contracts/verify-repo-boundary.md
 #
-# Assertions 1–11: one `git check-ignore -v` per forbidden category. Ten must be
-# ignored (exit 0); assertion 2 (.env.example) is INVERTED — it must NOT be
-# ignored (exit 1), because a .gitignore that swallows the template is a defect
-# only this case can catch.
-# Assertion 12: .DS_Store is no longer tracked (FR-013).
-# Assertion 13: data/snapshots/ contains nothing but .gitkeep (FR-012).
+# Assertions 1–14: one `git check-ignore` per category. Eleven must be ignored
+# (exit 0); three are INVERTED and must NOT be ignored (exit 1) — the two env
+# templates and the repository's committed SQL. A .gitignore that swallows any of
+# those is a defect only an inverted case can catch: the file is written, `git
+# add` reports nothing, the working tree looks clean, and it never enters history.
+# Assertion 15: .DS_Store is no longer tracked (FR-013).
+# Assertion 16: data/snapshots/ contains nothing but .gitkeep (FR-012).
 #
 # Behavioural guarantees: creates and deletes nothing, does not touch the index.
 # check-ignore operates on path strings, so no forbidden file is materialised.
@@ -52,9 +53,17 @@ CAT_NAME[7]="python environment";  CAT_PATH[7]="apps/ai-service/.venv/x";  CAT_I
 CAT_NAME[8]="generated storage";   CAT_PATH[8]="storage/documents/x";      CAT_INVERT[8]=0
 CAT_NAME[9]="application logs";    CAT_PATH[9]="apps/lab/storage/logs/x";  CAT_INVERT[9]=0
 CAT_NAME[10]="os noise";           CAT_PATH[10]=".DS_Store";               CAT_INVERT[10]=0
+# 12-14: added when the blanket `*.sql` rule was narrowed to dumps. 12 and 13 are
+# INVERTED — they are the only assertions that can catch a re-broadening of the
+# rule, which would silently un-commit the app's env template and المرحلة 11's
+# eighteen profiling queries. 14 proves the location half of the dump rule still
+# holds, so narrowing did not open a hole.
+CAT_NAME[11]="app env template";   CAT_PATH[11]="apps/lab/.env.example";   CAT_INVERT[11]=1
+CAT_NAME[12]="committed sql";      CAT_PATH[12]="sql/profiling/q01.sql";   CAT_INVERT[12]=1
+CAT_NAME[13]="dump by location";   CAT_PATH[13]="data/snapshots/x.sql";    CAT_INVERT[13]=0
 
 i=0
-while [ "$i" -lt 11 ]; do
+while [ "$i" -lt 14 ]; do
     name=${CAT_NAME[$i]}
     path=${CAT_PATH[$i]}
     invert=${CAT_INVERT[$i]}
@@ -71,8 +80,9 @@ while [ "$i" -lt 11 ]; do
         if [ "$ci_rc" -eq 1 ]; then
             ok "$name" "$path  NOT ignored  (inverted — correct)"
         else
-            fail "$name" "$path  ignored — the template must stay committable"
-            note "remediation: add the negation !.env.example to .gitignore"
+            rule=$(git check-ignore -v "$path" 2>/dev/null | cut -f1 | cut -d: -f1-2)
+            fail "$name" "$path  ignored by $rule — this path must stay committable"
+            note "remediation: narrow or negate the rule above; do not rename the file"
         fi
     else
         if [ "$ci_rc" -eq 0 ]; then
@@ -106,6 +116,6 @@ else
 fi
 
 # --- verdict -----------------------------------------------------------------
-verdict "BOUNDARY VERIFIED — 10 categories, 1 inverted case, 0 failures" \
-        "BOUNDARY BROKEN" 13
+verdict "BOUNDARY VERIFIED — 11 categories, 3 inverted cases, 0 failures" \
+        "BOUNDARY BROKEN" 16
 exit $?

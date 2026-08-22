@@ -13,9 +13,13 @@
 !.env.example
 
 # --- 2. Database dumps: plain ---
-*.sql
-# Exception: init.sql is committed source (the Lab DB's bootstrap), not a dump.
-!infrastructure/postgres/init.sql
+# Narrowed deliberately: a blanket `*.sql` silently swallows the repository's own
+# committed SQL (المرحلة 11's 18 profiling queries) — written, `git add` reports
+# nothing, working tree clean, never in history. Ignore dumps by NAME and by
+# LOCATION instead, and keep the source directories committable.
+*dump*.sql
+*backup*.sql
+data/snapshots/**
 
 # --- 3. Database dumps: compressed ---
 *.sql.gz
@@ -57,7 +61,7 @@ logs/
 Thumbs.db
 
 # --- 10. Snapshot containment ---
-# The production snapshot is NEVER copied into the repository
+# The local production copy is NEVER placed inside the repository
 # (docs/runbooks/snapshot.md). This directory stays empty except .gitkeep.
 data/snapshots/*
 !data/snapshots/.gitkeep

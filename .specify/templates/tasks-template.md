@@ -240,23 +240,22 @@ With multiple developers:
 
 ---
 
-## Constitution Alignment (`.specify/memory/constitution.md` v1.0.0)
+## What Belongs in This List
 
-- **Principle V — Basic Testing Only.** Generate test tasks for these four kinds and no
-  others: deterministic unit tests (normalizer, hashes, answer/option derivation, statistical
-  formulas), `lab:health` integration checks including the two inverted checks (write to the
-  MySQL snapshot MUST fail; `SELECT` on `users` MUST fail), guardrail/PII tests over the
-  forbidden-table list, and golden eval-set runs after any model / prompt / normalization /
-  embedding / chunking change. Do NOT generate coverage targets, e2e suites, or mocking layers.
-- **Principle III — Project-by-Project.** Every task belongs to exactly one active project
-  (P0…P9). Do not generate tasks from a project's explicit out-of-scope list.
-- **Principle IV — Code Quality.** Tasks touching AI output must include a JSON Schema
-  validation task; tasks touching embeddings must set `embedding_config_version`; tasks
-  touching imports/batches must include an idempotency task and an error-recording task.
-- **Principle VI — UX Consistency.** Tasks producing a metric or dashboard must include
-  showing `n` + `snapshot_taken_at`, priority ordering, and AI-output labelling.
-- **Data Protection (non-waivable).** Any task touching the production snapshot must run
-  through `lab_ro` (11 allowed tables) and must never introduce a PII column into the Lab DB.
+Tasks are **implementation, testing, infrastructure, and safety work**. A documentation task needs a
+reason beyond "the process asks for one" — if its only output is another document, drop it.
+
+- **Tests** are the four targeted kinds only: deterministic unit tests, the health check, guardrail
+  tests (a write through the `injazedu` connection throws; a table outside the copy allowlist
+  throws; no Lab table holds a PII column), and golden eval runs after any model / prompt /
+  normalization / embedding / chunking change. No coverage targets, no e2e suites, no mocking layers.
+- **AI output** → a schema-validation task. **Embeddings** → an `embedding_config_version` task.
+  **Imports and batches** → an idempotency task and an error-recording task.
+- **Metrics or dashboards** → showing `n` + `snapshot_taken_at`, priority ordering, AI labelling.
+- **Anything touching InjazEdu MySQL** reads and copies only, from the allowlist, and never stores
+  `user_id`.
+- If a task would settle a question the operator has not settled, it is not a task — it is an open
+  question for `plan.md` (Principle I).
 
 ---
 

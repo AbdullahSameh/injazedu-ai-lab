@@ -1,5 +1,12 @@
 # Feature Specification: Lab Foundation Bootstrap (P0 — المراحل 0–2)
 
+> **Historical record.** This increment is implemented and accepted; its artefacts — the three
+> verification scripts, `docker-compose.yml`, `.gitignore`, and the runbooks — remain in force.
+> Its *governance framing* does not: the constitution gates, the §13 acceptance tally, and every
+> `lab_ro` reference below were superseded on 2026-08-21 by
+> `docs/plans/lean-development-process.md` and constitution v2.0.0. Read it as a record of what
+> was done, not as a description of how work is done now.
+
 **Feature Branch**: `001-lab-foundation-bootstrap`
 **Created**: 2026-08-20
 **Status**: Draft

@@ -610,7 +610,7 @@ Mac — M1 Pro, 16 GB
 │  ├── gemma4:e2b-it-qat                  (Docker, memory-capped)│
 │  └── embeddinggemma:300m-qat-q4_0                            │
 │                                                             │
-│  MySQL 8 (Docker, read-only mount)  ← نسخة Production       │
+│  MySQL 9.1 (Homebrew الأصلي — قراءة فقط عبر التطبيق)  ← نسخة Production       │
 │                                       تُقرأ ولا تُعدَّل      │
 │  [n8n — يُضاف في P6 فقط]                                     │
 │  [Redis — غير موجود؛ ADR-011]                                │
@@ -844,6 +844,8 @@ e2b، مخرَج JSON قصير (~150 token)  ≈  3–6 ثانية/زوج
 
 الـLab **لا يستقبل PII أبدًا**. الـETL يعمل بقائمة سماح صريحة، لا باستثناءات.
 
+> **أين تُفرَض (محدَّث 2026-08-21):** هذه القائمة تُفرَض في **طبقة التطبيق** — `config/lab.php → source_tables` و`SourceReader` الذي يرفض أي جدول خارجها بالاسم، فوق اتصال `injazedu` بلا هدف كتابة ومستمع يرمي على أي عبارة ليست قراءة. لا يوجد مستخدم MySQL مخصّص ولا `GRANT`؛ راجع `docs/ADR/ADR-021.md` للقرار والمخاطرة المقبولة.
+
 **مسموح بالكامل:**
 ```text
 categories, courses (metadata فقط), chapters, lectures (العنوان والترتيب فقط),
@@ -961,8 +963,8 @@ pgvector → حفظ واسترجاع vector واحد بنجاح
 [ ] لا credentials من Production محليًا.
 [ ] Ollama على 11434 محليًا فقط، لا يُعرَّض.
 [ ] PostgreSQL وMySQL لا يُعرَّضان.
-[ ] مستخدم MySQL للنسخة المحلية بصلاحية SELECT فقط.
-[ ] PRODUCTION_WRITE_ENABLED=false موجود من اليوم الأول كـkill switch.
+[ ] القراءة-فقط نحو النسخة المحلية مفروضة في التطبيق بثلاث طبقات، وكلٌّ منها يمنع بمفرده
+    (اتصال بلا هدف كتابة · مستمع يرمي على أي عبارة ليست قراءة · قائمة سماح بـ11 جدولًا) — ADR-021.
 ```
 
 ### المخرجات

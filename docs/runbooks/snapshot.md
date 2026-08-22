@@ -15,8 +15,12 @@
 
 ## Rules
 
-- Nothing in this repository reads from, writes to, or mounts the snapshot. The first permitted
-  access is المرحلة 3 (read-only, via the ADR-020 grant).
-- If the snapshot is ever refreshed, update `snapshot_taken_at` here **and** in `.env.example`
-  (`SNAPSHOT_TAKEN_AT`) in the same commit, and record the new `refresh_policy` before P1.
+- Nothing in this repository writes to or mounts the snapshot. The first permitted access is
+  المرحلة 3: read-only through the application's `injazedu` connection, guarded by an empty write
+  host list, a query listener that throws on non-reads, and the eleven-table copy allowlist
+  (`docs/ADR/ADR-021.md`).
+- If the snapshot is ever refreshed, update `snapshot_taken_at` here **and** in
+  `apps/lab/.env` / `apps/lab/.env.example` (`SNAPSHOT_TAKEN_AT`) in the same commit, and record
+  the new `refresh_policy` before P1. Nothing else needs re-issuing — the connection uses the
+  host's existing account, so a refresh cannot leave a stale or over-privileged identity behind.
 - This file is committed deliberately: it must survive the loss of the machine it describes.
