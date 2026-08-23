@@ -1,6 +1,6 @@
 # InjazEdu AI Assessment & Engagement Lab — Constitution
 
-**Version**: 2.0.0 | **Last amended**: 2026-08-21
+**Version**: 2.1.0 | **Last amended**: 2026-08-23
 
 This governs `injazedu-ai-lab`: a **local-first, single-developer** AI laboratory built around the
 production platform `injazedu.co`. It is binding on every spec, plan, task list, and commit here.
@@ -84,7 +84,7 @@ Read-only is therefore enforced in the application, in three layers:
 
 1. the `injazedu` connection is configured with **no write target**;
 2. a query listener on that connection **throws** on any non-read statement;
-3. the source reader **refuses** any table outside the allowlist.
+3. the source reader **refuses**, by name, any table outside the two allowlists below.
 
 These stop accidents, not intent. Do not add database-level permission infrastructure to "fix" this
 without asking first (Principle I).
@@ -93,16 +93,31 @@ without asking first (Principle I).
 user_id)` only. The pepper lives in `.env`, is never committed, and is never stored in the Lab
 database. No model needs a student's name to analyse a question.
 
-**The copy allowlist.** Only these tables may be read and copied:
+**Two allowlists, because reading and storing are different acts** (amended 2026-08-23).
+
+*The copy allowlist* — what may be written into the Lab database:
 
 ```text
 categories · courses · chapters · lectures · quizzes · sections
 questions · options · quiz_files · results · question_result
 ```
 
+*The profile allowlist* — additionally readable for **aggregate** profiling, never stored:
+
+```text
+course_user · course_order · orders · user_roles · roles · book_course
+```
+
+These six answer questions the program cannot proceed without — which table actually records
+enrolment, whether `course_user` holds students or trainers — and they are read as counts, never
+copied. Everything outside both lists (`users`, `certificates`, `personal_access_tokens`,
+`social_providers`, and the rest) is refused by name.
+
 `results` and `question_result` carry `user_id`: it is **read and never stored** — converted to
-`student_ref` on the way in. Everything else — `users`, `orders`, `certificates`,
-`personal_access_tokens`, `social_providers`, and the rest — is out of bounds.
+`student_ref` on the way in.
+
+The guarantee that survives the split is the one that matters: **no PII column exists in the Lab
+database**, proven by a schema assertion, not by what a query happened to select.
 
 **The local production copy** lives on FileVault-encrypted storage, outside this repository, outside
 any cloud-synced folder, and is never copied to another machine. It is stamped with
@@ -119,8 +134,11 @@ generator output is schema-validated and never executed.
 **Secrets live in `.env` files only** and are never committed. Every `.env.example` lists every key
 with no values. No production credentials exist on this machine.
 
-**Human review decisions are the most valuable data in the system.** Regular `pg_dump` to encrypted
-local storage, an off-machine copy, and at least one verified restore before any group review.
+**Everything in the Lab database is reproducible** — re-import from the snapshot, re-run the
+pipeline — with one exception: reviewer decisions, which exist nowhere else. There is **no local
+backup requirement**; this machine is a development environment and the snapshot is disposable
+(amended 2026-08-23). Durability for reviewer decisions is a go-live concern, handled when the Lab
+runs against a real database on real infrastructure — not a local one.
 
 ---
 
@@ -158,8 +176,9 @@ mutation testing are out of scope.
 1. **Unit tests for the deterministic core**: Arabic normalizer, hash generation, correct-answer and
    option-index derivation, payload validation, state transitions, statistical formulas.
 2. **A health check as an executable test**, not documentation — non-zero exit on any failure.
-3. **Guardrail tests**: a write through the `injazedu` connection throws; a table outside the
-   allowlist throws; no Lab table holds a PII column.
+3. **Guardrail tests**: a write through the `injazedu` connection throws; a table outside **both**
+   allowlists throws by name; a profile-only table is readable but not copyable; no Lab table holds
+   a PII column.
 4. **Golden dataset (eval) tests**, re-run after any change to model, prompt, normalization,
    embedding, or chunking. Metrics are recorded with the run, not merely observed.
 
@@ -191,10 +210,14 @@ like one system.
 
 ## VII. Measured Budget
 
-The 16 GB M1 Pro is a hard constraint.
+The 16 GB M1 Pro is a real constraint, managed rather than gated (amended 2026-08-23).
 
-- **Memory.** The full stack stays within ~11–13 GB and must not exceed 13 GB at idle. Larger models
-  are measured only in isolated sessions.
+- **Memory.** macOS manages memory; the Lab does not police it. There is **no memory gate and no
+  acceptance criterion on a memory number**. `docs/runbooks/memory-check.md` holds the manual steps
+  to run when the machine feels slow, and what to do about each result. Measured 2026-08-23: the
+  stack costs ~5.1 GB with both models loaded, and ~90% of that is the two models — so performance
+  work belongs in the pipeline, not in tuning Postgres or MySQL. Larger models are still evaluated
+  in isolated sessions.
 - **Cheap layers run first.** Hash → `pg_trgm` → pgvector → LLM. Skipping a layer to "just ask the
   model" is a defect.
 - **LLM calls are rationed by an uncertainty band.** Exact matches and high-similarity pairs are

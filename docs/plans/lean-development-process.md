@@ -31,7 +31,7 @@ user: root / no password                    database: injazedu_lab
 | 1 | `apps/lab/.env` is standard Laravel. `DB_*` = Lab Postgres (default connection); `INJAZEDU_DB_*` = MySQL source. Root `.env` keeps only what docker compose reads. |
 | 2 | Read-only toward MySQL is enforced by connection config (`'write' => ['host' => []]`) **plus** a query listener that throws on any non-`SELECT`, proven by a script. |
 | 3 | The 11-table allowlist survives as `config/lab.php` + a reader that throws on anything else + a test that no Lab migration creates a PII column. |
-| 4 | Ollama runs as the official macOS app and registered login item with defaults. Measure memory first; pin limits **only** if the 13 GB budget is actually at risk. No project-owned launch agent. |
+| 4 | Ollama runs as the official macOS app and registered login item with defaults. No runtime limits are pinned and no project-owned launch agent exists. (The 13 GB budget gate was removed 2026-08-23 — constitution v2.1.0; the measured stack is 5,132 MiB, ~90% of it the two models.) |
 | 5 | `docs/plans/` Arabic documents: patch the contradictions only. Strategy, profiling pack, budgets, P1–P5 untouched. |
 | 6 | `docs/ADR/`: keep all three files. Rewrite ADR-021 only. ADR-016/017/020/022 are never written. |
 | 7 | `PRODUCTION_WRITE_ENABLED` is dropped — it guards a write path to `injazedu.co` that does not exist. |
@@ -94,7 +94,7 @@ Directory name and branch stay (renaming breaks `.specify/feature.json` and git)
 - Keep the edge cases that name a real failure mode: a queue that "works" without a worker; a panel page faking a green status; dependency installation running under the wrong PHP; the framework's write-block possibly falling back to the read host rather than refusing.
 - Net: ~18 FRs, ~10 SCs.
 
-**`plan.md`** — 201 → ~70 lines. Delete the 8-gate table, the 🔴 Operator Prerequisite section, Complexity Tracking, and the Go/No-Go table (keep the two rows that are real engineering forks: PHP 8.4 cannot run Laravel 13 → fall back to Laravel 12/PHP 8.2; both models resident exceed 13 GB → reduce context or separate embedding batches). Keep Technical Context, the file tree, and the group ordering.
+**`plan.md`** — 201 → ~70 lines. Delete the 8-gate table, the 🔴 Operator Prerequisite section, Complexity Tracking, and the Go/No-Go table (keep the two rows that are real engineering forks: PHP 8.4 cannot run Laravel 13 → fall back to Laravel 12/PHP 8.2; both models fail to stay resident → reduce context or separate embedding batches — a runtime diagnosis, not a gate). Keep Technical Context, the file tree, and the group ordering.
 
 **`tasks.md`** — 48 → ~26 tasks. Delete T001–T006 (operator gate + four ADRs), T011–T012 (grant SQL + `SNAPSHOT_DB_*`), T010/T017 (kill switch), T035–T036 (plist + setup script), T045/T047/T048 (plan amendment, §13 tally, inspection). Renumber.
 
@@ -166,7 +166,7 @@ apps/lab/
 **New — three, each smaller than its deleted 90-line contract:**
 
 - `scripts/verify-injazedu-access.sh` — connects as root, asserts all 11 allowlisted tables are readable and `SELECT COUNT(*) FROM questions` = **29142**. Runs without the app. Contains **no inverted DB-level check** — root can write, and asserting otherwise would be a lie.
-- `scripts/verify-model-runtime.sh` — Ollama alive, both tags present, listening socket is loopback-only, one non-loopback connection attempt refused. `--with-memory` loads both models and reports resident memory against the 13 GB ceiling.
+- `scripts/verify-model-runtime.sh` — Ollama alive, both tags present, listening socket is loopback-only, one non-loopback connection attempt refused. `--with-memory` loads both models and reports resident memory. It reports; it does not gate (2026-08-23).
 - `scripts/verify-lab-app.sh` — the app runs 8.4 **and** the machine still links 8.2; migrations applied; the probe job's row exists with `worker_pid` ≠ dispatcher pid after the worker exits; root `.env`'s `LAB_DB_PASSWORD` matches `apps/lab/.env`'s `DB_PASSWORD` (the one real cost of two env files); panel requires auth. Then delegates to `php artisan test`.
 
 ## 6. `.gitignore` and env files

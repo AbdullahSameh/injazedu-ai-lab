@@ -4,15 +4,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Source copy allowlist (FR-003, data-model.md §2)
+    | Source COPY allowlist — governs COPYING INTO the Lab, not reading
     |--------------------------------------------------------------------------
     |
-    | The eleven tables of the InjazEdu MySQL source the Lab may read. The
-    | database holds fifty; the other thirty-nine are unreachable through
-    | App\Support\SourceReader, the only sanctioned path (guard 3).
+    | The eleven tables of the InjazEdu MySQL source the Lab may COPY INTO its
+    | own database. This list is the copy check: P1's ETL must call
+    | App\Support\SourceReader::assertCopyable() before writing any row.
     |
-    | `results` and `question_result` carry user_id — readable by design, never
-    | storable. P1's ETL converts it to student_ref on the way in.
+    | It does NOT govern reading — reading is source_tables ∪ profile_tables.
+    | Never merge the two lists into one union check: reading a count is not
+    | storing a row, and the split between them is the safety property
+    | (P0 §3.2, ADR-021 revised 2026-08-23, FR-001).
+    |
+    | `results` and `question_result` carry user_id — copyable by design,
+    | never storable as-is. P1's ETL converts it to student_ref on the way in.
     |
     */
 
@@ -28,6 +33,30 @@ return [
         'quiz_files',
         'results',
         'question_result',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Profile allowlist — governs READING AS COUNTS, never copying
+    |--------------------------------------------------------------------------
+    |
+    | Six additional InjazEdu tables that may be READ (as counts/aggregates for
+    | §6 profiling) but may NEVER be copied into the Lab database. Added
+    | 2026-08-23 (P0 §3.2) so §6 queries 15, 16 and 18 can run in P1.
+    |
+    | This list is NOT a copy check: assertCopyable() accepts source_tables
+    | alone. A table on this list is read-only in the strongest sense — its
+    | rows stay in the source, always (P0 §3.2, ADR-021 revised, FR-001).
+    |
+    */
+
+    'profile_tables' => [
+        'course_user',
+        'course_order',
+        'orders',
+        'user_roles',
+        'roles',
+        'book_course',
     ],
 
     /*

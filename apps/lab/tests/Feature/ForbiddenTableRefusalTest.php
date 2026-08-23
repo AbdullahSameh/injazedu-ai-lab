@@ -8,10 +8,16 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * FR-021 / SC-011: each of the seventeen forbidden tables is refused by its
- * own name, one assertion each. The names are enumerated explicitly — never
- * derived from the database or the allowlist — so a future change widening
- * config('lab.source_tables') cannot pass silently.
+ * FR-003 / SC-001: each of the fifteen doubly-forbidden tables is refused by
+ * its own name, one assertion each. The names are enumerated explicitly — never
+ * derived from the database or an allowlist — so a future change widening
+ * config('lab.source_tables') or config('lab.profile_tables') cannot pass silently.
+ *
+ * Why fifteen, not seventeen: on 2026-08-23 (P0 §3.2) `orders` and
+ * `course_order` joined `profile_tables`, so they became readable as counts.
+ * They are NOT copyable — that property is asserted in
+ * SourceTableAllowlistTest, which is what stops this shrinking list from
+ * becoming an eroding allowlist.
  *
  * Runs with the service and the model runtime both stopped: the refusal
  * happens before any connection is opened.
@@ -19,7 +25,7 @@ use Tests\TestCase;
 class ForbiddenTableRefusalTest extends TestCase
 {
     /**
-     * The seventeen forbidden names (spec.md §14.2). Fixed list on purpose.
+     * The fifteen doubly-forbidden names (spec.md §3.2). Fixed list on purpose.
      *
      * @return array<string, array{string}>
      */
@@ -27,8 +33,6 @@ class ForbiddenTableRefusalTest extends TestCase
     {
         return [
             'users' => ['users'],
-            'orders' => ['orders'],
-            'course_order' => ['course_order'],
             'book_order' => ['book_order'],
             'coupons' => ['coupons'],
             'certificates' => ['certificates'],

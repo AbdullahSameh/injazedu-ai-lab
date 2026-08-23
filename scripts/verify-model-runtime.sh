@@ -15,11 +15,13 @@
 #
 # With --with-memory, four more assertions load both models with empty requests
 # (no generation or embedding), read their resident allocation from /api/ps,
-# record Ollama process RSS, and compare each resident figure against 13 GiB.
-# The historical §12.3 model line (3.3 GiB combined) is an estimate, so exceeding
-# it is reported as a warning; exceeding the 13 GiB ceiling is blocking. macOS
-# total memory is context only because compressed/cache memory makes it unsuitable
-# as a component-level Phase 4 gate; Phase 10 owns the full-stack measurement.
+# and record Ollama process RSS. Memory figures are REPORTED, never gated:
+# constitution v2.1.0 (2026-08-23) removed every memory gate and acceptance
+# criterion. The historical §12.3 model line (3.3 GiB combined) stays a warning;
+# the old 13 GiB whole-machine ceiling survives ONLY as the trigger for a
+# warning — it can never fail this script. Manual review lives in
+# docs/runbooks/memory-check.md. macOS total memory is context only because
+# compressed/cache memory makes it unsuitable as a component-level figure.
 #
 # Exit codes: 0 = all assertions pass · 1 = at least one blocking failure ·
 #             2 = cannot run.
@@ -38,7 +40,8 @@ OLLAMA_PORT=11434
 EMBED_MODEL=embeddinggemma:300m-qat-q4_0
 CHAT_MODEL=gemma4:e2b-it-qat
 PLAN_MODELS_MIB=3379
-SYSTEM_CEILING_MIB=13312
+# The retired ceiling (constitution v2.1.0). WARNING trigger only — never blocks.
+MEMORY_WARN_MIB=13312
 WITH_MEMORY=0
 
 # --- argument parsing -------------------------------------------------------
@@ -152,7 +155,7 @@ if [ "$WITH_MEMORY" -eq 1 ]; then
         fail "models resident" "cannot load both exact tags while one or more are missing"
         fail "resident memory" "not measured"
         fail "ollama RSS" "not measured"
-        fail "13 GB ceiling" "not measured"
+        fail "memory report" "not measured"
     else
         embed_payload=$(jq -cn --arg model "$EMBED_MODEL" '{model:$model, input:[], keep_alive:-1}')
         chat_payload=$(jq -cn --arg model "$CHAT_MODEL" '{model:$model, keep_alive:-1}')
@@ -208,20 +211,19 @@ if [ "$WITH_MEMORY" -eq 1 ]; then
         fi
 
         if [ "$resident_mib" -le 0 ]; then
-            fail "13 GB ceiling" "cannot compare without a resident model allocation"
-        elif [ "$resident_mib" -gt "$SYSTEM_CEILING_MIB" ] || [ "$ollama_rss_mib" -gt "$SYSTEM_CEILING_MIB" ]; then
-            fail "13 GB ceiling" "models=${resident_mib} MiB rss=${ollama_rss_mib} MiB > ${SYSTEM_CEILING_MIB} MiB — GO/NO-GO TRIGGER"
-            note "do not pin runtime limits silently; record the overrun and stop for a decision"
+            fail "memory report" "cannot report without a resident model allocation"
+        elif [ "$resident_mib" -gt "$MEMORY_WARN_MIB" ] || [ "$ollama_rss_mib" -gt "$MEMORY_WARN_MIB" ]; then
+            warn "memory report" "models=${resident_mib} MiB rss=${ollama_rss_mib} MiB — above the retired ${MEMORY_WARN_MIB} MiB figure. INFORMATIONAL: there is no memory gate and no acceptance criterion (constitution v2.1.0); see docs/runbooks/memory-check.md"
         else
-            ok "13 GB ceiling" "models=${resident_mib} MiB rss=${ollama_rss_mib} MiB; each <= ${SYSTEM_CEILING_MIB} MiB"
+            ok "memory report" "models=${resident_mib} MiB rss=${ollama_rss_mib} MiB — reported only; there is no memory gate (constitution v2.1.0)"
         fi
 
         system_used_raw=$(top -l 1 -s 0 -n 0 2>/dev/null | awk '/^PhysMem:/ {print $2; exit}')
         system_used_mib=$(to_mib "$system_used_raw")
         if [ -n "$system_used_mib" ]; then
-            warn "system memory context" "${system_used_mib} MiB shown by top; Phase 10 owns the full-stack gate"
+            warn "system memory context" "${system_used_mib} MiB shown by top; context only — manual review lives in docs/runbooks/memory-check.md, which has no threshold"
         else
-            warn "system memory context" "unavailable from top; not a Phase 4 blocking condition"
+            warn "system memory context" "unavailable from top; context only, never a condition"
         fi
     fi
 fi

@@ -14,11 +14,14 @@
 # Assertions 17–19 (003-service-health-guardrails, FR-026): the service's env
 # file is ignored, its template is NOT (inverted, like the two existing
 # templates), and no .env file's pepper value appears in tracked content.
+# Assertions 20–22 (004-handover-and-p1-readiness, FR-017): each committed
+# environment template — root, apps/lab, apps/ai-service — lists EVERY key its
+# real file uses, and carries NO values (every KEY= line is empty after =).
 #
 # Behavioural guarantees: creates and deletes nothing, does not touch the index.
 # check-ignore operates on path strings, so no forbidden file is materialised.
 #
-# Exit codes: 0 = all 13 assertions pass · 1 = at least one failure · 2 = cannot
+# Exit codes: 0 = all assertions pass · 1 = at least one failure · 2 = cannot
 # run (not a git repository).
 #
 # SHELL CONSTRAINT — bash 3.2 ONLY. No associative arrays, no mapfile, no
@@ -136,7 +139,38 @@ else
     ok "pepper containment" "STUDENT_REF_PEPPER absent from all tracked content"
 fi
 
+# --- assertions 20–22: every template covers its real file, with no values (FR-017) ---
+# For each of the three pairs: (a) every key the real file uses must appear in
+# the committed template — a key only in the real file is an undocumented
+# environment surface; (b) no template line may carry a value — the template is
+# the shape, never an instance. Comment lines and blanks are ignored.
+check_env_pair() {
+    local label=$1 tpl=$2 real=$3 missing valued
+    if [ ! -f "$tpl" ] || [ ! -f "$real" ]; then
+        fail "$label" "missing $([ -f "$tpl" ] || printf '%s' "$tpl")$([ -f "$real" ] || printf '%s' "$real")"
+        return 1
+    fi
+    missing=$(comm -13 \
+        <(sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' "$tpl" | sort -u) \
+        <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$real" | sed 's/=.*//' | sort -u))
+    valued=$(sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=..*/\1/p' "$tpl")
+    if [ -n "$missing" ]; then
+        fail "$label" "keys in $real but not in $tpl: $(printf '%s' "$missing" | tr '\n' ' ')"
+        return 1
+    fi
+    if [ -n "$valued" ]; then
+        fail "$label" "template carries values for: $(printf '%s' "$valued" | tr '\n' ' ')"
+        note "remediation: empty them — .env.example is the shape, never an instance"
+        return 1
+    fi
+    ok "$label" "$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$tpl") keys covered, no values"
+}
+
+check_env_pair "root env template"      "$REPO_ROOT/.env.example"                 "$REPO_ROOT/.env"
+check_env_pair "lab env template"       "$REPO_ROOT/apps/lab/.env.example"        "$REPO_ROOT/apps/lab/.env"
+check_env_pair "service env template"   "$REPO_ROOT/apps/ai-service/.env.example" "$REPO_ROOT/apps/ai-service/.env"
+
 # --- verdict -----------------------------------------------------------------
-verdict "BOUNDARY VERIFIED — 13 categories, 4 inverted cases, pepper contained, 0 failures" \
-        "BOUNDARY BROKEN" 19
+verdict "BOUNDARY VERIFIED — 16 categories, 4 inverted cases, pepper contained, 3 env templates, 0 failures" \
+        "BOUNDARY BROKEN" 22
 exit $?
