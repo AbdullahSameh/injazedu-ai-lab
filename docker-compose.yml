@@ -1,0 +1,49 @@
+# docker-compose.yml — Lab foundation stack (P0, المرحلة 2).
+#
+# One service only in this increment: the Lab's own PostgreSQL 17 + pgvector.
+# Deviations from the P0 plan's defaults are recorded BEFORE this file per
+# Constitution Principle II: docs/ADR/ADR-018.md (port 5433) and
+# docs/ADR/ADR-019.md (OrbStack).
+#
+# The memory ceiling below is verified by reading it BACK FROM THE RUNNING
+# CONTAINER (scripts/verify-data-layer.sh assertion 6), not trusted — see
+# research R4 and ADR-019.
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg17
+    container_name: injazedu_lab_postgres
+    environment:
+      POSTGRES_DB: injazedu_lab
+      POSTGRES_USER: lab
+      # No default: startup must fail if the key is unset (FR-022).
+      POSTGRES_PASSWORD: ${LAB_DB_PASSWORD:?LAB_DB_PASSWORD is not set — copy .env.example to .env and generate a local password}
+    ports:
+      # Loopback-only bind (FR-018, ADR-018). Host 5433 → container 5432.
+      - "127.0.0.1:5433:5432"
+    mem_limit: 1536m
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "work_mem=32MB"
+      - "-c"
+      - "maintenance_work_mem=256MB"
+      - "-c"
+      - "max_connections=50"
+    volumes:
+      - lab_pgdata:/var/lib/postgresql/data
+      # Runs ONLY at volume creation — see the header in init.sql (research R6).
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab -d injazedu_lab"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  lab_pgdata:
+    name: lab_pgdata
