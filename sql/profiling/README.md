@@ -46,18 +46,21 @@ this pack carries a blocked-query warning, because no query is blocked.
 
 ## How P1 runs it
 
-Against the local native MySQL 9.1 on `127.0.0.1:3306` (database `injazedu`), from the repository
-root — one file at a time, numbering preserved:
+Through the Laravel command, **never a direct `mysql` client** — a direct client connects as `root`
+with no listener and no allowlist, which steps outside all three read-only layers (P1 plan §3.1
+Decision 1):
 
 ```sh
-mysql -h 127.0.0.1 -u root injazedu < sql/profiling/01-bank-size.sql
+php artisan lab:profile             # all eighteen, in order
+php artisan lab:profile --query=3   # one file
+php artisan lab:profile --dry-run   # list the files and their declared tables, execute nothing
 ```
 
-or all eighteen in order, labelling each result:
-
-```sh
-for f in sql/profiling/*.sql; do echo "== $f"; mysql -h 127.0.0.1 -u root injazedu < "$f"; done
-```
+The command reads the **Tables read** column of the table above as a declaration: every name goes
+through `SourceReader::assertReadable()` before its file executes, and one refusal stops the run and
+names the table. Results are persisted to `source_snapshots.profiling_results` (JSONB) and
+`docs/reports/p1-profiling.md` is generated from that JSON — so the report and the data can never
+drift.
 
 Every query is a bare `SELECT`; nothing in the pack writes anything. Queries 13–14 read
 `question_result`, which carries `user_id` — the counts it returns name no student, but treat its

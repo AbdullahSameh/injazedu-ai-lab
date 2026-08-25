@@ -13,29 +13,30 @@
 
 ## 1. Executive Summary
 
-هذا المستند يحدد برنامجًا من **عشرة مشاريع** حول `injazedu.co`، يحقق هدفين في وقت واحد:
+This document defines a program of **ten projects** around `injazedu.co` that achieves two goals at once:
 
-1. رفع جودة الأسئلة والاختبارات، وزيادة **التفاعل** بين المدربين والطلاب.
-2. استخدام المنصة كمختبر عملي لتعلّم وتطبيق: Local LLMs، Ollama، RAG، Embeddings،
-   Vector Search، AI Evaluation، Document Understanding، Arabic NLP، Event-driven systems،
-   Analytics، وHuman-in-the-loop AI.
+1. Raise the quality of the questions and the tests, and increase **engagement** between trainers and students.
+2. Use the platform as a practical laboratory for learning and applying: Local LLMs, Ollama, RAG, Embeddings,
+   Vector Search, AI Evaluation, Document Understanding, Arabic NLP, Event-driven systems,
+   Analytics, and Human-in-the-loop AI.
 
-البنك الحالي يحتوي على نحو **25,000 سؤال** فيها تكرار كثير. لذلك لا نبدأ بإنشاء أسئلة جديدة،
-بل بتحويل البنك الموجود إلى **Question Intelligence Layer** نظيفة وقابلة للقياس.
+The current bank holds roughly **25,000 questions** with a great deal of duplication. So we do not start by creating new questions;
+we start by turning the existing bank into a clean, measurable **Question Intelligence Layer**.
 
-لكن — وهذا هو أهم تغيير عن v1.0 — **التفاعل هو الهدف الأول المعلن**، ولا يجوز أن ينتظر
-ستة مشاريع من أعمال البيانات. لذلك يعمل البرنامج على **مسارين متوازيين**:
+But — and this is the most important change from v1.0 — **engagement is the first declared goal**, and it must not wait for
+six projects of data work. The program therefore runs on **two parallel tracks**:
 
 ```text
 Track A — Question Intelligence          Track B — Engagement
-(الأساس: فهم البنك وتنظيفه)               (قيمة ظاهرة مبكرًا)
+(the foundation: understand and clean    (visible value early)
+ the bank)
 
 P0  AI Lab Foundation
      │
 P1  Profiling & Question Mirror
      │
      ├──────────────────────────────────▶ P3  Item Statistics
-P2  Arabic + Duplicate Intelligence           (SQL فقط، بلا AI)
+P2  Arabic + Duplicate Intelligence           (SQL only, no AI)
      │                                         │
 P4  Question Quality Audit                P6  Telegram Engagement Engine
      │                                         │
@@ -45,10 +46,10 @@ P5  Taxonomy & Coverage Map               P7  Public Practice & Funnel
                     P8  PDF Knowledge & Source Library
                     P9  AI Trainer Assessment Copilot
 
-Phase D (موصوفة، غير مبنية) — Production Integration & Assessment Builder
+Phase D (described, not built) — Production Integration & Assessment Builder
 ```
 
-القاعدة الأساسية للنظام تبقى كما هي في v1.0:
+The system's foundational rule stays exactly as it was in v1.0:
 
 ```text
 Production serves students.
@@ -56,294 +57,297 @@ AI Lab prepares, analyses and recommends.
 Humans approve.
 ```
 
-لكن مع قيد "Production read-only" أضفنا قاعدة ثانية ضرورية (انظر §4):
+But with the "Production read-only" constraint we added a second, necessary rule (see §4):
 
 ```text
-حيث لا يستطيع الـLab أن يسلّم شيئًا إلى Production،
-يملك الـLab سطح تفاعل خاصًا به: Telegram + صفحات تدريب عامة.
+Where the Lab cannot hand anything over to Production,
+the Lab owns an engagement surface of its own: Telegram + public practice pages.
 ```
 
 ---
 
-## 2. ما تغيّر عن v1.0 ولماذا
+## 2. What Changed from v1.0 and Why
 
-خطة v1.0 **ممتازة في المبادئ**، وأغلب قراراتها المعمارية صحيحة ومحفوظة كما هي في هذا المستند.
-لكنها كُتبت **قبل قراءة الـSchema الفعلية**، فبُنيت على افتراضات بيانات غير موجودة في Production.
-هذا الجدول يلخص التغييرات الجوهرية:
+The v1.0 plan is **excellent on principles**, and most of its architectural decisions are correct and preserved as they are in this document.
+But it was written **before the actual schema was read**, so it was built on data assumptions that do not exist in Production.
+This table summarizes the substantive changes:
 
-| # | v1.0 | الواقع / v2.0 | الأثر |
-|---|------|---------------|-------|
-| 1 | Import JSON فيه `"explanation"` | **لا يوجد عمود explanation.** فقط `questions.description` و`questions.hint` | إعادة تعريف الـmapping قبل أي Import |
-| 2 | `"correct_answer": "B"` | **لا يوجد عمود للجواب الصحيح ولا مفاتيح A/B/C/D.** الجواب يُستنتج من `options.points > 0` | يجب كشف أسئلة بلا جواب صحيح وأسئلة بأكثر من جواب |
-| 3 | `"exam_ids": [40, 42]` | **مستحيل بنيويًا.** `questions.section_id → sections.quiz_id` شجرة أب واحد | إعادة تأطير البرنامج بالكامل — انظر §2.1 |
-| 4 | Event tracking في Project 6 | **غير ممكن مع Production read-only.** `results` بلا أوقات، و`question_result.option_id` هو `NOT NULL` | فصل التحليلات إلى Retrospective وProspective (§7) |
-| 5 | Taxonomy مفترضة موجودة | **لا يوجد أي taxonomy في Production** | Taxonomy تصبح مشروعًا مستقلًا (P5) بمخرَج بشري أولًا |
-| 6 | Telegram = Project 7 (بعد ستة مشاريع) | التفاعل هو الهدف الأول | Telegram يصبح P6 على **مسار متوازٍ** يبدأ مبكرًا |
-| 7 | Item statistics مدفونة في Project 8 | قابلة للحساب **اليوم** بـSQL فقط من `results`/`question_result` | تُسحب إلى الأمام كـP3 — أعلى قيمة لكل مجهود في البرنامج |
-| 8 | Project 4 يدمج Quality + Coverage | Quality لا يحتاج taxonomy، Coverage يحتاجها | فصلهما إلى P4 و P5 |
-| 9 | Redis + n8n في Project 0 | لا حاجة لهما حتى P6، والجهاز 16 GB | حذفهما من الأساس (ADR-011، ADR-012) |
-| 10 | FastAPI وLaravel يكتبان إلى Postgres | مالكان للـSchema = Drift مضمون | Laravel يملك الـSchema، FastAPI stateless (ADR-013) |
-| 11 | لا يوجد Throughput budget | ~30K زوج × ~4 ث = **~33 ساعة متصلة** على M1 Pro | LLM يعمل فقط في Uncertainty Band (§13) |
-| 12 | لا Benchmark للـEmbedders | جودة الـdedup يحكمها الـembedder وليس الـLLM | Benchmark إلزامي للـembedders (§12.4) |
-| 13 | `conflicting_duplicate` بلا مسار | سؤالان متطابقان بجوابين مختلفين = خطأ يمسّ الطلاب الآن | مسار تصعيد عاجل (P2) |
-| 14 | STEP / IELTS غير مذكورين | كلاهما يعتمد على Passage-based item sets | Stimulus كعنصر أول (§8) |
-| 15 | "Qiyas-style" بلا تعريف | لا مواصفة لعدد الأسئلة أو التوقيت أو التوزيع | Blueprint موثّقة من أهل التخصص (P5) |
-| 16 | §37 يمنع Agents، والـbrief يطلبها | تناقض ظاهري | موقف صريح ومحدود (ADR-014) |
-| 17 | ثلاثة ترتيبات متعارضة (§34، §35، §52) | — | ترتيب واحد فقط (§34 في هذا المستند) |
-| 18 | لا Effort estimates ولا Go/No-Go | — | كل مشروع له تقدير جهد وحدود قبول/رفض |
+| # | v1.0 | Reality / v2.0 | Impact |
+|---|------|----------------|--------|
+| 1 | Import JSON containing `"explanation"` | **There is no explanation column.** Only `questions.description` and `questions.hint` | Redefine the mapping before any import |
+| 2 | `"correct_answer": "B"` | **There is no correct-answer column and no A/B/C/D keys.** The answer is inferred from `options.points > 0` | Questions with no correct answer and questions with more than one must be detected |
+| 3 | `"exam_ids": [40, 42]` | **Structurally impossible.** `questions.section_id → sections.quiz_id` is a single-parent tree | Reframes the whole program — see §2.1 |
+| 4 | Event tracking in Project 6 | **Not possible with Production read-only.** `results` has no timings, and `question_result.option_id` is `NOT NULL` | Split analytics into retrospective and prospective (§7) |
+| 5 | Taxonomy assumed to exist | **There is no taxonomy at all in Production** | Taxonomy becomes an independent project (P5) with a human deliverable first |
+| 6 | Telegram = Project 7 (after six projects) | Engagement is the first goal | Telegram becomes P6 on a **parallel track** that starts early |
+| 7 | Item statistics buried in Project 8 | Computable **today** with SQL alone from `results`/`question_result` | Pulled forward as P3 — the highest value per unit of effort in the program |
+| 8 | Project 4 merges Quality + Coverage | Quality does not need a taxonomy; Coverage does | Split into P4 and P5 |
+| 9 | Redis + n8n in Project 0 | Neither is needed until P6, and the machine has 16 GB | Removed from the foundation (ADR-011, ADR-012) |
+| 10 | FastAPI and Laravel both write to Postgres | Two schema owners = guaranteed drift | Laravel owns the schema, FastAPI is stateless (ADR-013) |
+| 11 | No throughput budget | ~30K pairs × ~4 s = **~33 continuous hours** on an M1 Pro | The LLM runs only inside the uncertainty band (§13) |
+| 12 | No benchmark for the embedders | Dedup quality is governed by the embedder, not the LLM | Benchmarking the embedders is mandatory (§12.4) |
+| 13 | `conflicting_duplicate` with no path | Two identical questions with two different answers = an error that affects students right now | Urgent escalation path (P2) |
+| 14 | STEP / IELTS not mentioned | Both depend on passage-based item sets | Stimulus as a first-class element (§8) |
+| 15 | "Qiyas-style" with no definition | No specification of question count, timing, or distribution | A blueprint documented by subject-matter experts (P5) |
+| 16 | §37 forbids agents while the brief asks for them | An apparent contradiction | An explicit and bounded position (ADR-014) |
+| 17 | Three conflicting orderings (§34, §35, §52) | — | One ordering only (§34 in this document) |
+| 18 | No effort estimates and no go/no-go | — | Every project has an effort estimate and accept/reject thresholds |
 
-### 2.1 الاكتشاف الأهم: التكرار ليس إهمالًا، بل نتيجة بنيوية
+### 2.1 The Most Important Discovery: Duplication Is Not Negligence, It Is Structural
 
-في Production، السؤال يرتبط بقسم واحد، والقسم يرتبط باختبار واحد:
+In Production, a question belongs to one section, and a section belongs to one quiz:
 
 ```text
 questions.section_id → sections.quiz_id → quizzes.id
 ```
 
-لا يوجد جدول many-to-many بين الأسئلة والاختبارات. **إذن لا توجد طريقة لإعادة استخدام سؤال
-في اختبار آخر إلا بنسخه.** هذا يفسّر وجود ~25,000 سؤال مع تكرار كثيف: كل مرة أراد مدرب
-استخدام سؤال جيد في اختبار جديد، أنشأ نسخة.
+There is no many-to-many table between questions and quizzes. **So there is no way to reuse a question
+in another quiz except by copying it.** That explains ~25,000 questions with heavy duplication: every time a trainer wanted
+to use a good question in a new test, they created a copy.
 
-النتيجة على مستوى البرنامج:
+The program-level consequence:
 
-- التكرار **عَرَض**، والسبب الجذري هو **غياب Item Bank قابل لإعادة الاستخدام**.
-- تنظيف التكرار (P2) يعالج العَرَض، وهذا مفيد وضروري لكنه **لا يمنع عودته**.
-- العلاج الجذري هو `question_pool` + علاقة many-to-many في Production — وهذا **يحتاج تعديل
-  Production**، فيقع في Phase D. وهو البند الأهم فيها.
-- لذلك: لا نعد أحدًا بأن "التكرار سينتهي". نعد بأننا سنقيسه، ونجمّعه في clusters، ونمنع
-  استخدام أكثر من عضو من العنقود في اختبار واحد، ونصلح الأخطاء الخطيرة.
+- Duplication is a **symptom**; the root cause is the **absence of a reusable item bank**.
+- Cleaning up duplication (P2) treats the symptom, which is useful and necessary but **does not stop it from coming back**.
+- The root fix is `question_pool` + a many-to-many relation in Production — and that **requires modifying
+  Production**, so it falls into Phase D. It is the most important item there.
+- Therefore: we do not promise anyone that "duplication will end." We promise to measure it, to group it into clusters, to prevent
+  more than one member of a cluster from being used in one test, and to fix the dangerous errors.
 
-هذا التأطير يجب أن يظهر في أي عرض للإدارة، لأن v1.0 كانت ستُقاس على وعد لا تستطيع الوفاء به.
+This framing must appear in any presentation to management, because v1.0 would have been measured against a promise it could not keep.
 
 ---
 
-## 3. القيود الأربعة الحاكمة
+## 3. The Four Governing Constraints
 
-كل قرار في هذا المستند مشتق من هذه القيود. إذا تغيّر أحدها، يُعاد فتح المستند.
+Every decision in this document derives from these constraints. If one of them changes, the document is reopened.
 
 ### 3.1 Production read-only
 
-لا migrations، لا تعديل كود، لا كتابة بيانات على `injazedu.co`.
+No migrations, no code changes, no data writes on `injazedu.co`.
 
-**ما يقتله هذا القيد من v1.0:**
+**What this constraint kills from v1.0:**
 
-| v1.0 | لماذا لا يعمل |
-|------|----------------|
-| Project 6 — Assessment Builder يعمل في Production | `quizzes` لا تحتوي type ولا pass_mark ولا attempt_limit ولا نافذة زمنية ولا pool-draw |
-| Event Tracking (Projects 6/8/9) | يحتاج جدول أحداث جديد + instrumentation في كود Production |
-| Write-back للأسئلة المعتمدة (§26) | يحتاج endpoint كتابة في Production |
-| Personalized Practice داخل المنصة | يحتاج قراءة سلوك حقيقي وكتابة توصيات |
+| v1.0 | Why it does not work |
+|------|----------------------|
+| Project 6 — an Assessment Builder running in Production | `quizzes` has no type, no pass_mark, no attempt_limit, no time window, and no pool-draw |
+| Event Tracking (Projects 6/8/9) | Needs a new events table + instrumentation in Production code |
+| Write-back of approved questions (§26) | Needs a write endpoint in Production |
+| Personalized Practice inside the platform | Needs reading real behaviour and writing recommendations |
 
-**ما يبقى ممكنًا بالكامل:** كل تحليل، كل تنظيف، كل استخراج، كل توليد draft، وكل تفاعل عبر
-قناة يملكها الـLab. وهذا كثير — انظر §7.
+**What remains entirely possible:** every analysis, every cleanup, every extraction, every draft generation, and every engagement over
+a channel the Lab owns. And that is a great deal — see §7.
 
-### 3.2 التفاعل هو الهدف الأول
+### 3.2 Engagement is the first goal
 
-من الـbrief: «نركز أساسًا على التفاعل» و«فريق المدرشن ينشر الاختبارات على Telegram تلقائيًا»
-و«تشجيع الطلاب على التسجيل في الدورات المفتوحة».
+From the brief: "we focus primarily on engagement," and "the moderation team publishes the tests on Telegram automatically,"
+and "encourage students to enroll in the open courses."
 
-v1.0 وضعت Telegram في Project 7، أي بعد ستة مشاريع (شهور). هذا **انقلاب في الأولويات**.
-في v2.0، Telegram على مسار متوازٍ يبدأ بعد P1، ولا ينتظر تنظيف البنك بالكامل.
+v1.0 put Telegram in Project 7 — that is, after six projects (months). That is an **inversion of priorities**.
+In v2.0, Telegram sits on a parallel track that starts right after P1 and does not wait for the bank to be fully cleaned.
 
 ### 3.3 M1 Pro / 16 GB
 
-الجهاز يحدد الـstack والسعة الحسابية:
+The machine determines the stack and the compute capacity:
 
-- حذف Redis وn8n من الأساس.
-- `gemma4:e2b-it-qat` هو نموذج العمل؛ الأكبر يُقاس في **جلسات معزولة** فقط.
-- ميزانية Throughput صريحة (§13) — لأن "LLM يراجع كل الـcandidates" غير محدود على هذا الجهاز.
+- Redis and n8n removed from the foundation.
+- `gemma4:e2b-it-qat` is the working model; anything larger is measured in **isolated sessions** only.
+- An explicit throughput budget (§13) — because "the LLM reviews all the candidates" is unbounded on this machine.
 
-### 3.4 طاقة المراجعة البشرية
+### 3.4 Human review capacity
 
-المتاح: **المطوّر (أنت) + فريق المدرشن + بعض المدربين**.
+What is available: **the developer (you) + the moderation team + a few trainers**.
 
-هذا مورد نادر ومكلف، وهو **العائق الحقيقي** في أي نظام Human-in-the-loop. لذلك:
+This is a scarce and expensive resource, and it is the **real bottleneck** in any human-in-the-loop system. Therefore:
 
-- كل خطوة مراجعة بشرية لها **ميزانية** بالساعات (§13.3).
-- المراجعة تُوجَّه بـActive Learning: يراجع الإنسان فقط ما هو قريب من حدّ القرار، لا كل شيء.
-- المدربون (الأندر) للأحكام التخصصية فقط: صحة الجواب، جودة السؤال، الـtaxonomy.
-- المدرشن للعمل التشغيلي المتكرر: مراجعة أزواج التكرار، اعتماد النشر.
+- Every human review step has a **budget** in hours (§13.3).
+- Review is steered by active learning: the human reviews only what is close to the decision boundary, not everything.
+- Trainers (the scarcest) are used only for domain judgments: answer correctness, question quality, the taxonomy.
+- The moderation team handles repetitive operational work: reviewing duplicate pairs, approving publications.
 
-### 3.5 معطى إضافي: نسخة Production موجودة محليًا
+### 3.5 An additional given: a Production copy exists locally
 
-توجد نسخة من قاعدة بيانات Production على الـMac. هذا **يبسّط P1 كثيرًا** (لا حاجة لبناء
-مُصدِّر ولا اتفاق تصدير)، لكنه **يُنشئ مسؤولية حماية بيانات فورية** — النسخة تحتوي
-`users` (إيميلات، جوالات)، `orders`، و`certificates.id_number` (هوية وطنية)، و`complaints`.
-انظر §14 للقواعد الإلزامية.
+A copy of the Production database exists on the Mac, dated **2026-08-07**. This **simplifies P1 considerably** (no need to build
+an exporter or agree on an export), but it **creates an immediate data-protection responsibility** — the copy contains
+`users` (emails, phone numbers), `orders`, `certificates.id_number` (national ID), and `complaints`.
+See §14 for the mandatory rules.
+
+**Updated 2026-08-25:** this copy is **fixed for the entire local program**. It is not refreshed before P1, P2, or any later
+project, and no gate anywhere blocks on its age. Its date travels with every number as context (§14.1).
 
 ---
 
 ## 4. Responsibility Model & ADRs
 
-### 4.1 القرارات المحفوظة من v1.0
+### 4.1 Decisions preserved from v1.0
 
-هذه صحيحة وتبقى نافذة كما هي:
+These are correct and remain in force as they are:
 
-| ADR | القرار |
-|-----|--------|
-| ADR-001 | Production يبقى Source of Truth للهوية والتسجيل والدفع والنتائج الرسمية |
-| ADR-002 | AI Lab يبدأ read-only بالنسبة لـProduction |
-| ADR-003 | Ollama لا يُعرَّض لـProduction ولا للإنترنت؛ FastAPI هو الـGateway |
-| ADR-004 | Embeddings من نموذج embedding مخصص، لا من الـLLM التوليدي |
-| ADR-005 | كل مخرَج AI يؤثر على محتوى تعليمي يحتاج مراجعة بشرية |
-| ADR-006 | n8n ينسّق ولا يملك business logic |
-| ADR-007 | النص العربي الأصلي محفوظ؛ التطبيع مرتبط بالمهمة |
-| ADR-008 | توليد الأسئلة مُسنَد إلى مصدر ومفحوص للتكرار قبل الاعتماد |
-| ADR-009 | الحسابات التحليلية deterministic؛ الـLLM يشرحها ولا يحسبها |
-| ADR-010 | التطوير المحلي على نسخ مضبوطة قبل أي تكامل حيّ |
+| ADR | Decision |
+|-----|----------|
+| ADR-001 | Production remains the source of truth for identity, enrollment, payment, and official results |
+| ADR-002 | The AI Lab starts read-only with respect to Production |
+| ADR-003 | Ollama is not exposed to Production or to the internet; FastAPI is the gateway |
+| ADR-004 | Embeddings come from a dedicated embedding model, not from the generative LLM |
+| ADR-005 | Every AI output that affects educational content requires human review |
+| ADR-006 | n8n orchestrates and does not own business logic |
+| ADR-007 | The original Arabic text is preserved; normalization is task-specific |
+| ADR-008 | Question generation is grounded in a source and duplicate-checked before approval |
+| ADR-009 | Analytical calculations are deterministic; the LLM explains them and does not compute them |
+| ADR-010 | Local development runs on controlled copies before any live integration |
 
-### 4.2 ADR-011 — لا Redis في الأساس
+### 4.2 ADR-011 — No Redis in the foundation
 
-**القرار:** طوابير الـLab تعمل على Postgres (`database` queue driver)؛ لا Redis حتى تظهر حاجة محددة.
+**Decision:** the Lab's queues run on Postgres (`database` queue driver); no Redis until a specific need appears.
 
-**السبب:** Production نفسها تستخدم `database` driver (جدول `jobs`). الـLab لديه Postgres أصلًا.
-Redis يستحق وجوده عند الحاجة إلى distributed locks أو rate limiting أو أحمال عالية —
-ولا شيء من ذلك ينطبق على مختبر بجهاز واحد. الفائدة: خدمة أقل، ~200 MB أقل، ومفهوم أقل للتعلّم
-في وقت واحد.
+**Why:** Production itself uses the `database` driver (the `jobs` table). The Lab already has Postgres.
+Redis earns its place when distributed locks, rate limiting, or high load are needed —
+and none of that applies to a single-machine laboratory. The benefit: one service fewer, ~200 MB less, and one concept fewer to learn
+at the same time.
 
-**إعادة النظر:** عند P6 (حدود Telegram). وحتى هناك، قد تكفي Postgres advisory locks + جدول
-token bucket.
+**Reconsider:** at P6 (Telegram limits). And even there, Postgres advisory locks + a token-bucket
+table may be enough.
 
-### 4.3 ADR-012 — n8n يُؤجَّل إلى P6، ودوره محدود
+### 4.3 ADR-012 — n8n is deferred to P6, and its role is bounded
 
-**القرار:** لا n8n في P0. يُدخَل في P6 للأجزاء التي شكلها فعلًا orchestration — جدولة، نداء
-API، تنبيه عند الفشل، ربط أنظمة — وكل business rule يبقى في Laravel.
+**Decision:** no n8n in P0. It enters at P6 for the parts that are genuinely orchestration-shaped — scheduling, calling
+an API, alerting on failure, connecting systems — and every business rule stays in Laravel.
 
-**السبب — بصراحة:** n8n هدف تعلّم معلن، لكن قيمته الهندسية هنا محدودة، لأن v1.0 نفسها تقول
-في §17 Workflow E إن الاعتماد وسجل التدقيق يجب أن يكونا داخل Filament. إذا كان الاعتماد في
-Filament والمنطق في Laravel، فما يتبقى لـn8n هو الجدولة والتنبيه. هذا كافٍ لتحقيق هدف التعلّم
-دون قلب المسؤوليات.
+**Why — plainly:** n8n is a declared learning goal, but its engineering value here is limited, because v1.0 itself says
+in §17 Workflow E that approval and the audit trail should live inside Filament. If approval is in
+Filament and the logic is in Laravel, what is left for n8n is scheduling and alerting. That is enough to satisfy the learning goal
+without inverting responsibilities.
 
-**البديل المقبول:** Laravel Scheduler + Jobs يؤدّي الوظيفة نفسها. الاختيار بين الاثنين
-قرار تعلّم، لا قرار هندسي — وهذا مذكور صريحًا حتى لا يُقاس المشروع على n8n.
+**An acceptable alternative:** Laravel Scheduler + Jobs does the same job. Choosing between the two is
+a learning decision, not an engineering one — and that is stated explicitly so the project is not measured on n8n.
 
-### 4.4 ADR-013 — Laravel يملك الـSchema؛ FastAPI stateless
+### 4.4 ADR-013 — Laravel owns the schema; FastAPI is stateless
 
-**القرار:** كل migrations لجداول الـLab في Laravel. FastAPI يستقبل payload ويعيد JSON،
-ولا يكتب في جداول الـLab.
+**Decision:** all migrations for the Lab's tables live in Laravel. FastAPI receives a payload and returns JSON,
+and does not write to the Lab's tables.
 
-**استثناء واحد ضيّق ومعلن:** كتابة الـembeddings بالجملة (bulk) يجوز أن تذهب مباشرة من
-FastAPI، وفقط إلى `question_embeddings` و`document_chunk_embeddings`، وهذان الجدولان
-يبقى Laravel هو من يهاجرهما.
+**One narrow, declared exception:** bulk embedding writes may go directly from
+FastAPI, and only into `question_embeddings` and `document_chunk_embeddings`, and those two tables
+are still migrated by Laravel.
 
-**السبب:** في v1.0 §3.1 يظهر FastAPI وLaravel كِلاهما يكتب إلى PostgreSQL. مالكان للـschema
-يعني drift مؤكّد وتصحيحًا مؤلمًا لاحقًا.
+**Why:** in v1.0 §3.1 both FastAPI and Laravel appear writing to PostgreSQL. Two schema owners
+means guaranteed drift and a painful correction later.
 
-### 4.5 ADR-014 — تعريف "Agents" في هذا البرنامج
+### 4.5 ADR-014 — Defining "agents" in this program
 
-الـbrief يطلب «Local AI models & agents»، وv1.0 §37 تمنع «Complex multi-agent architecture».
-لا تناقض إذا حددنا المصطلح:
+The brief asks for "Local AI models & agents," and v1.0 §37 forbids a "complex multi-agent architecture."
+There is no contradiction once the term is defined:
 
-**Agent هنا = حلقة محدودة الأدوات، بسقف خطوات، وبوابة بشرية.** ليست منظومة عملاء مستقلة.
+**An agent here = a tool-limited loop, with a step ceiling, and a human gate.** Not an autonomous fleet of agents.
 
-| النوع | التصنيف |
-|-------|---------|
-| Duplicate adjudication، Quality review، Classification | **ليست agents** — نداء واحد بمخرَج structured |
-| Trainer Copilot session (P9) | **agent حقيقي محدود** — يستطيع نداء `retrieve_source` و`search_similar_questions` و`validate_draft` في حلقة، بسقف ~6 خطوات، وينتهي إلزامًا بـdraft + citations لمراجعة بشرية |
-| كتابة في Production، نشر، حذف، تغيير جواب صحيح | **ممنوع لأي agent** |
+| Type | Classification |
+|------|----------------|
+| Duplicate adjudication, quality review, classification | **Not agents** — a single call with a structured output |
+| Trainer Copilot session (P9) | **A genuine bounded agent** — it may call `retrieve_source`, `search_similar_questions`, and `validate_draft` in a loop, with a ceiling of ~6 steps, and must end with a draft + citations for human review |
+| Writing to Production, publishing, deleting, changing a correct answer | **Forbidden for any agent** |
 
-### 4.6 ADR-015 — الـLab يملك سطح التفاعل (جديد وجوهري)
+### 4.6 ADR-015 — The Lab owns the engagement surface (new and substantive)
 
-**القرار:** بما أن Production read-only، فإن الـLab **يملك سطحًا للتفاعل خاصًا به**:
-بوت Telegram وصفحات تدريب عامة مستضافة على الـLab. هذا المحتوى **غير رسمي وغير مُدرَّج**
-(ungraded)، عام، وموجّه لأعلى القمع التسويقي. التحويل يحدث بالربط الخارجي إلى صفحات الدورات
-في Production عبر روابط متتبَّعة.
+**Decision:** since Production is read-only, the Lab **owns an engagement surface of its own**:
+a Telegram bot and public practice pages hosted on the Lab. This content is **unofficial and ungraded**,
+public, and aimed at the top of the marketing funnel. Conversion happens by linking outward to the course pages
+in Production through tracked links.
 
-**لماذا هذا ضروري:** v1.0 تقول «Production serves students» و«AI Lab prepares and recommends».
-مع read-only، لا توجد قناة يسلّم الـLab من خلالها أي شيء إلى Production. فإما أن يملك الـLab
-سطحًا، أو لا يصل أي شيء إلى أي طالب. وهذا ليس تنازلًا فقط: التدريب العام المجاني هو منتج
-أعلى قمع بطبيعته، ولا يوجد سبب لوضعه خلف تسجيل الدخول.
+**Why this is necessary:** v1.0 says "Production serves students" and "AI Lab prepares and recommends."
+With read-only, there is no channel through which the Lab can hand anything to Production. So either the Lab owns
+a surface, or nothing reaches any student at all. And this is not merely a concession: free public practice is by nature
+a top-of-funnel product, and there is no reason to put it behind a login.
 
-**الحدود الصريحة:** الـLab لا يمنح شهادة، ولا يحسب نتيجة رسمية، ولا يخزّن PII، ولا يصادق
-هوية طالب، ولا يدّعي أنه نتيجة معتمدة. الاختبارات الرسمية تبقى في Production وحدها.
+**The explicit boundaries:** the Lab issues no certificate, computes no official result, stores no PII, does not authenticate
+a student's identity, and never claims to be an approved result. Official tests remain in Production alone.
 
-**نقطة الالتقاء:** Phase D — عند فتح Production، يُدمج السطحان.
+**The meeting point:** Phase D — when Production is opened, the two surfaces merge.
 
 ---
 
 # Part II — Production Reality
 
-هذا الجزء هو ما كان ناقصًا في v1.0. كل ما بعده مبني عليه.
-كل سطر هنا مصدره `docs/schema/injazedu-db-schema.md`.
+This part is what was missing from v1.0. Everything after it is built on it.
+Every line here comes from `docs/schema/injazedu-db-schema.md`.
 
-## 5. خريطة المفاهيم → الواقع
+## 5. Concept → Reality Map
 
-| المفهوم | الواقع في Production | معالجة الـLab |
-|---------|---------------------|----------------|
-| نص السؤال | `questions.name` — **LONGTEXT**، قد يحتوي HTML | `raw_text` / `clean_text` / `search_text` |
-| الشرح (explanation) | **لا يوجد عمود.** المتاح `questions.description` (TEXT) و`questions.hint` (TEXT) | `explanation_raw` ← `description`، `hint_raw` ← `hint`. **قِس نسبة الامتلاء قبل الاعتماد عليه** |
-| الخيارات | `options.name`، `options.points`، `options.order` | `option_index` مشتق من (`order` ASC، ثم `id` ASC) |
-| مفاتيح A/B/C/D | **لا وجود لها** | تُصطنع في الـLab فقط للعرض والـprompts، ولا تُعاد إلى Production |
-| الجواب الصحيح | **لا يوجد عمود.** يُستنتج: `options.points > 0` | `correct_option_ids[]` + علَم `correct_count` |
-| سؤال ← اختبار | `questions.section_id → sections.quiz_id`. **اختبار واحد فقط لكل سؤال** | لا many-to-many. انظر §2.1 |
-| الدورة | `quizzes.course_id` (nullable) | `NULL` ⇒ اختبار عام/مفتوح |
-| التخصص | `quizzes.category_id` → شجرة `categories` (`parent_id` INT، self-ref، **بلا FK**) | نسخ الشجرة؛ الانتباه لعدم تطابق النوع INT / BIGINT |
-| المحاضرة | `quizzes.lecture_id` | مؤشر على post-lecture quiz |
-| الوسائط | `quiz_files` — ENUM(video, image, audio)، مرتبط بـ**section أو question**؛ وأيضًا `<img>` داخل `questions.name` | فحص المسارين معًا |
-| النص المشترك (passage) | `sections.name` + `sections.description` + `quiz_files.section_id` | كائن `stimulus` مستقل — §8 |
-| المدة | `quizzes.duration` INT، default 10 | للاختبار كله فقط. **لا يوجد توقيت لكل سؤال** |
-| مؤلف السؤال | **لا يوجد.** فقط `quizzes.user_id` | النسبة على مستوى الاختبار لا السؤال |
-| المحاولات | `results(total_points, user_id, quiz_id)` | لا رقم محاولة؛ يُشتق بترتيب `created_at` لكل (user, quiz) |
-| الأجوبة | `question_result(result_id, question_id, option_id, points)` | `option_id` **NOT NULL** ⇒ **لا يمكن تسجيل سؤال متروك** |
-| صحة الجواب | لا عمود `is_correct` | `points > 0` هو الإشارة |
-| Soft deletes | `deleted_at` على quizzes / sections / questions / options / results | نسخ كل الصفوف مع `source_deleted_at`، واستثناؤها من التحليل النشط |
-| التسجيل في دورة | **غامض**: `course_user` مقابل `orders` + `course_order.expiry_date` | **يُحسم بالاستعلام قبل أي تحليل** — §6.2 |
-| قنوات Telegram | `courses.telegram_channel` / `telegram_group` / `telegram_private` (VARCHAR) | نسخها إلى جدول channels مع علَم `is_public` صريح |
-| الأدوار | Spatie بأسماء جداول مخصصة: `user_roles`، `user_permissions`، `role_permissions`، morph key = `user_id` | أي أداة تفترض الأسماء الافتراضية ستفشل |
+| Concept | Reality in Production | Lab handling |
+|---------|-----------------------|--------------|
+| Question text | `questions.name` — **LONGTEXT**, may contain HTML | `raw_text` / `clean_text` / `search_text` |
+| Explanation | **No such column.** What exists is `questions.description` (TEXT) and `questions.hint` (TEXT) | `explanation_raw` ← `description`, `hint_raw` ← `hint`. **Measure the fill rate before relying on it** |
+| Options | `options.name`, `options.points`, `options.order` | `option_index` derived from (`order` ASC, then `id` ASC) |
+| A/B/C/D keys | **They do not exist** | Synthesized in the Lab only, for display and prompts, and never sent back to Production |
+| Correct answer | **No such column.** Inferred: `options.points > 0` | `correct_option_ids[]` + a `correct_count` flag |
+| Question ← test | `questions.section_id → sections.quiz_id`. **Exactly one test per question** | No many-to-many. See §2.1 |
+| Course | `quizzes.course_id` (nullable) | `NULL` ⇒ a general/open test |
+| Specialization | `quizzes.category_id` → the `categories` tree (`parent_id` INT, self-ref, **no FK**) | Copy the tree; watch out for the INT / BIGINT type mismatch |
+| Lecture | `quizzes.lecture_id` | An indicator of a post-lecture quiz |
+| Media | `quiz_files` — ENUM(video, image, audio), attached to a **section or a question**; and also `<img>` inside `questions.name` | Check both paths together |
+| Shared text (passage) | `sections.name` + `sections.description` + `quiz_files.section_id` | An independent `stimulus` object — §8 |
+| Duration | `quizzes.duration` INT, default 10 | For the whole test only. **There is no per-question timing** |
+| Question author | **Does not exist.** Only `quizzes.user_id` | Attribution is at the test level, not the question level |
+| Attempts | `results(total_points, user_id, quiz_id)` | No attempt number; it is derived by ordering `created_at` per (user, quiz) |
+| Answers | `question_result(result_id, question_id, option_id, points)` | `option_id` is **NOT NULL** ⇒ **a skipped question cannot be recorded** |
+| Answer correctness | No `is_correct` column | `points > 0` is the signal |
+| Soft deletes | `deleted_at` on quizzes / sections / questions / options / results | Copy every row with `source_deleted_at`, and exclude them from active analysis |
+| Course enrollment | **Ambiguous**: `course_user` versus `orders` + `course_order.expiry_date` | **Settled by query before any analysis** — §6.2 |
+| Telegram channels | `courses.telegram_channel` / `telegram_group` / `telegram_private` (VARCHAR) | Copy them into a channels table with an explicit `is_public` flag |
+| Roles | Spatie with custom table names: `user_roles`, `user_permissions`, `role_permissions`, morph key = `user_id` | Any tool that assumes the default names will fail |
 
-### 5.1 قواعد استنتاج الجواب الصحيح (إلزامية)
+### 5.1 Correct-answer inference rules (mandatory)
 
-هذه أهم قاعدة في الـETL كلها، لأن كل شيء لاحق يعتمد عليها:
+This is the most important rule in the whole ETL, because everything downstream depends on it:
 
 ```text
 correct_option_ids = [o.id for o in options if o.deleted_at IS NULL and o.points > 0]
 correct_count      = len(correct_option_ids)
 
-correct_count == 1  →  single_correct        (الحالة المتوقعة)
-correct_count == 0  →  BROKEN_NO_KEY         (سؤال معطوب — لا يُستخدم، ويُصعَّد)
-correct_count >  1  →  MULTI_KEY             (إما multi-select أو partial credit — يُحسم بالقياس)
+correct_count == 1  →  single_correct        (the expected case)
+correct_count == 0  →  BROKEN_NO_KEY         (a broken question — not used, and escalated)
+correct_count >  1  →  MULTI_KEY             (either multi-select or partial credit — settled by measurement)
 ```
 
-`MULTI_KEY` يحتاج قرارًا: هل النظام يدعم أكثر من جواب صحيح، أم أن هذه أخطاء إدخال؟
-الاستعلام 4 في §6.1 (توزيع `points`) يجيب: إذا كانت القيم كلها 0/1 فهي أخطاء غالبًا؛
-إذا كانت متدرجة فهي partial credit مقصود.
+`MULTI_KEY` needs a decision: does the system support more than one correct answer, or are these data-entry errors?
+Query 4 in §6.1 (the `points` distribution) answers it: if the values are all 0/1 they are probably errors;
+if they are graduated it is intentional partial credit.
 
-### 5.2 قاعدة اشتقاق ترتيب الخيارات
+### 5.2 Option-order derivation rule
 
-`options.order` نوعه INT وقيمته الافتراضية **0**، فقد يتكرر داخل السؤال نفسه.
-الترتيب العشوائي يعني أن "الخيار B" يتغير بين تشغيل وآخر — وهذا يفسد الـprompts والـhashes
-والمراجعة البشرية.
+`options.order` is an INT whose default value is **0**, so it may repeat inside the same question.
+A random ordering means that "option B" changes between one run and the next — and that ruins the prompts, the hashes,
+and the human review.
 
 ```text
-ORDER BY `order` ASC, id ASC   -- إلزامي وثابت في كل مكان
+ORDER BY `order` ASC, id ASC   -- mandatory and identical everywhere
 ```
 
-`order` كلمة محجوزة في MySQL → backticks دائمًا.
+`order` is a reserved word in MySQL → always use backticks.
 
 ---
 
-## 6. حزمة استعلامات الفحص (Profiling Query Pack)
+## 6. Profiling Query Pack
 
-**هذه أول مهمة عملية في البرنامج، وتُنفَّذ قبل بناء أي شيء.**
-v1.0 قالت «استورد 25 ألف سؤال» دون أن تقيس البنك أولًا. لا نبني على رقم غير مُقاس.
+**This is the first practical task in the program, and it is executed before anything is built.**
+v1.0 said "import 25 thousand questions" without measuring the bank first. We do not build on an unmeasured number.
 
-تُشغَّل على **النسخة المحلية** من MySQL. كلها SELECT فقط.
+They run against the **local copy** of MySQL. All of them are SELECT only.
 
-> **محدَّث 2026-08-23:** الاستعلامات **15 و16 و18** تقرأ جداول خارج قائمة النقل
-> (`course_user`, `course_order`, `orders`, `user_roles`, `roles`, `book_course`). هذه الجداول
-> الآن على **قائمة القراءة التجميعية** في §14.2 — تُقرأ عدًّا ولا تُنقَل — فالحزمة كلها قابلة
-> للتشغيل في P1 بلا استثناء.
+> **Updated 2026-08-23:** queries **15, 16 and 18** read tables outside the copy list
+> (`course_user`, `course_order`, `orders`, `user_roles`, `roles`, `book_course`). Those tables
+> are now on the **aggregate-read list** in §14.2 — read as counts and never copied — so the whole pack is
+> runnable in P1 with no exceptions.
 
-### 6.1 استعلامات البنك
+### 6.1 Bank queries
 
 ```sql
--- 1) حجم البنك الحقيقي
+-- 1) The real size of the bank
 SELECT COUNT(*) AS total,
        SUM(deleted_at IS NULL) AS active,
        SUM(deleted_at IS NOT NULL) AS soft_deleted
 FROM questions;
 
--- 2) توزيع عدد الخيارات لكل سؤال
+-- 2) Distribution of the number of options per question
 SELECT opt_count, COUNT(*) AS questions FROM (
   SELECT q.id, COUNT(o.id) AS opt_count
   FROM questions q
@@ -352,7 +356,7 @@ SELECT opt_count, COUNT(*) AS questions FROM (
   GROUP BY q.id
 ) t GROUP BY opt_count ORDER BY opt_count;
 
--- 3) *** الأهم *** سلامة الجواب الصحيح
+-- 3) *** THE MOST IMPORTANT *** correct-answer integrity
 SELECT correct_count, COUNT(*) AS questions FROM (
   SELECT q.id, SUM(CASE WHEN o.points > 0 THEN 1 ELSE 0 END) AS correct_count
   FROM questions q
@@ -361,29 +365,29 @@ SELECT correct_count, COUNT(*) AS questions FROM (
   GROUP BY q.id
 ) t GROUP BY correct_count ORDER BY correct_count;
 
--- 4) توزيع points: هل 0/1 أم درجات متفاوتة؟
+-- 4) points distribution: is it 0/1 or graduated scores?
 SELECT points, COUNT(*) AS options_count
 FROM options WHERE deleted_at IS NULL
 GROUP BY points ORDER BY points;
 
--- 5) تكرار قيم order داخل السؤال (خطر اشتقاق المفاتيح)
+-- 5) Repeated order values inside a question (a hazard for key derivation)
 SELECT COUNT(*) AS questions_with_order_ties FROM (
   SELECT question_id FROM options WHERE deleted_at IS NULL
   GROUP BY question_id, `order` HAVING COUNT(*) > 1
 ) t;
 
--- 6) نسبة امتلاء description / hint (بديل explanation)
+-- 6) Fill rate of description / hint (the explanation substitute)
 SELECT COUNT(*) AS total,
        SUM(description IS NOT NULL AND TRIM(description) <> '') AS has_description,
        SUM(hint IS NOT NULL AND TRIM(hint) <> '')               AS has_hint
 FROM questions WHERE deleted_at IS NULL;
 
--- 7) عام مقابل خاص بدورة
+-- 7) General versus course-specific
 SELECT CASE WHEN course_id IS NULL THEN 'general' ELSE 'course' END AS kind,
        COUNT(*) AS quizzes, SUM(status = 1) AS active
 FROM quizzes WHERE deleted_at IS NULL GROUP BY kind;
 
--- 8) عدد الأسئلة لكل اختبار (لفهم أحجام الاختبارات الفعلية)
+-- 8) Questions per quiz (to understand the real test sizes)
 SELECT questions_per_quiz, COUNT(*) AS quizzes FROM (
   SELECT z.id, COUNT(q.id) AS questions_per_quiz
   FROM quizzes z
@@ -393,7 +397,7 @@ SELECT questions_per_quiz, COUNT(*) AS quizzes FROM (
   GROUP BY z.id
 ) t GROUP BY questions_per_quiz ORDER BY questions_per_quiz;
 
--- 9) HTML والصور داخل نص السؤال
+-- 9) HTML and images inside the question text
 SELECT COUNT(*) AS total,
        SUM(name LIKE '%<img%')          AS has_img_tag,
        SUM(name LIKE '%<%')             AS has_any_html,
@@ -401,14 +405,14 @@ SELECT COUNT(*) AS total,
        MAX(CHAR_LENGTH(name))           AS longest_stem
 FROM questions WHERE deleted_at IS NULL;
 
--- 10) الوسائط: على مستوى السؤال أم القسم؟
+-- 10) Media: at the question level or the section level?
 SELECT type,
        SUM(question_id IS NOT NULL) AS at_question,
        SUM(section_id  IS NOT NULL) AS at_section,
        COUNT(*) AS total
 FROM quiz_files GROUP BY type;
 
--- 11) نظرة أولى على التكرار الحرفي (بلا تطبيع بعد)
+-- 11) A first look at literal duplication (no normalization yet)
 SELECT COUNT(*) AS duplicate_groups,
        SUM(c) - COUNT(*) AS redundant_questions
 FROM (
@@ -417,23 +421,23 @@ FROM (
   GROUP BY h HAVING COUNT(*) > 1
 ) t;
 
--- 12) الأقسام التي تحمل نصًا مشتركًا (passage) — مهم لـSTEP/IELTS
+-- 12) Sections that carry shared text (a passage) — important for STEP/IELTS
 SELECT COUNT(*) AS sections_total,
        SUM(description IS NOT NULL AND CHAR_LENGTH(description) > 200) AS long_stimulus,
        SUM(name IS NOT NULL AND TRIM(name) <> '') AS named
 FROM sections WHERE deleted_at IS NULL;
 ```
 
-### 6.2 استعلامات البيانات السلوكية (أساس P3)
+### 6.2 Behavioural-data queries (the basis of P3)
 
 ```sql
--- 13) حجم بيانات الإجابات المتاحة للإحصاء
+-- 13) The volume of answer data available for statistics
 SELECT COUNT(*) AS answers,
        COUNT(DISTINCT result_id)   AS results,
        COUNT(DISTINCT question_id) AS questions_with_data
 FROM question_result;
 
--- 14) كم سؤالًا لديه عدد إجابات يكفي للإحصاء؟
+-- 14) How many questions have enough answers for statistics?
 SELECT bucket, COUNT(*) AS questions FROM (
   SELECT question_id, CASE
     WHEN COUNT(*) >= 100 THEN 'a_100_plus'
@@ -443,7 +447,7 @@ SELECT bucket, COUNT(*) AS questions FROM (
   FROM question_result GROUP BY question_id
 ) t GROUP BY bucket ORDER BY bucket;
 
--- 15) *** حسم غموض التسجيل *** course_user أم course_order؟
+-- 15) *** SETTLING THE ENROLLMENT AMBIGUITY *** course_user or course_order?
 SELECT 'course_user' AS src, COUNT(*) AS rows_,
        COUNT(DISTINCT user_id) AS users_, COUNT(DISTINCT course_id) AS courses_
 FROM course_user
@@ -452,73 +456,73 @@ SELECT 'course_order', COUNT(*),
        COUNT(DISTINCT o.user_id), COUNT(DISTINCT co.course_id)
 FROM course_order co JOIN orders o ON o.id = co.order_id;
 
--- 16) من هم مستخدمو course_user؟ مدربون أم طلاب؟
+-- 16) Who are the users in course_user? Trainers or students?
 SELECT r.name AS role, COUNT(DISTINCT cu.user_id) AS users_in_course_user
 FROM course_user cu
 JOIN user_roles ur ON ur.user_id = cu.user_id
 JOIN roles r       ON r.id = ur.role_id
 GROUP BY r.name ORDER BY users_in_course_user DESC;
 
--- 17) تغطية قنوات Telegram (أساس P6)
+-- 17) Telegram channel coverage (the basis of P6)
 SELECT COUNT(*) AS courses,
        SUM(telegram_channel IS NOT NULL AND TRIM(telegram_channel) <> '') AS has_channel,
        SUM(telegram_group   IS NOT NULL AND TRIM(telegram_group)   <> '') AS has_group,
        SUM(telegram_private IS NOT NULL AND TRIM(telegram_private) <> '') AS has_private
 FROM courses WHERE deleted_at IS NULL;
 
--- 18) هل جدول book_course القديم مهجور فعلًا؟
+-- 18) Is the old book_course table really abandoned?
 SELECT COUNT(*) AS book_course_rows FROM book_course;
 ```
 
-### 6.3 ما يتغير حسب النتائج
+### 6.3 What changes depending on the results
 
-| النتيجة | الأثر على الخطة |
-|---------|------------------|
-| `correct_count = 0` كثير (>2%) | تصحيح الأسئلة المعطوبة يصبح **أول مخرَج** في البرنامج، قبل أي dedup |
-| `correct_count > 1` كثير | حسم دلالة multi-key قبل الـETL؛ يؤثر على الـhash وعلى الـpolls في P6 |
-| `has_description` منخفض (<30%) | مسار الشرح في P9 يبدأ من الصفر؛ لا يمكن استخدامه كـfew-shot examples |
-| `has_img_tag` مرتفع (>10%) | مسار الوسائط يصبح مشروعًا فرعيًا لا حالة هامشية |
-| أسئلة كثيرة بأقل من 10 إجابات | P3 يقتصر على البنك النشط؛ يُذكر حجم التغطية صريحًا |
-| `course_user` كله مدربون | التسجيل = `course_order`؛ يُثبَّت في الوثائق ويُبنى عليه |
-| `long_stimulus` كبير | §8 (passage-based) يرتفع من "إضافة" إلى "متطلب أساسي" |
-| العدد الفعلي ≠ 25,000 | تُحدَّث كل التقديرات في §13 |
+| Result | Effect on the plan |
+|--------|--------------------|
+| Many `correct_count = 0` (>2%) | Fixing the broken questions becomes the **first deliverable** in the program, before any dedup |
+| Many `correct_count > 1` | Settle the meaning of multi-key before the ETL; it affects the hash and the polls in P6 |
+| Low `has_description` (<30%) | The explanation path in P9 starts from zero; it cannot be used as few-shot examples |
+| High `has_img_tag` (>10%) | The media path becomes a sub-project, not an edge case |
+| Many questions with fewer than 10 answers | P3 is limited to the active bank; the coverage size is stated explicitly |
+| `course_user` is all trainers | Enrollment = `course_order`; fix that in the documentation and build on it |
+| `long_stimulus` is large | §8 (passage-based) rises from "an addition" to "a core requirement" |
+| The real count ≠ 25,000 | Every estimate in §13 is updated |
 
 ---
 
-## 7. ما يمكن حسابه وما لا يمكن — مع Production read-only
+## 7. What Can and Cannot Be Computed — with Production read-only
 
-الجدول الذي كان يجب أن يكون في v1.0 قبل وعود Project 8.
+The table that should have been in v1.0 before the Project 8 promises.
 
-### 7.1 متاح اليوم من بيانات Production الموجودة
+### 7.1 Available today from existing Production data
 
-| المقياس | المصدر |
-|---------|--------|
-| عدد مرات ظهور السؤال | `COUNT(question_result)` لكل `question_id` |
-| نسبة الإجابة الصحيحة (p-value) | `AVG(points > 0)` لكل سؤال |
-| توزيع اختيار المشوّشات | `COUNT(*) GROUP BY option_id` |
-| معامل التمييز (point-biserial) | ارتباط درجة السؤال بدرجة الاختبار من `results.total_points` |
-| توزيع الدرجات لكل اختبار | `results.total_points` |
-| عدد المحاولات لكل (طالب، اختبار) | `COUNT(results)` مجمّعًا |
-| الأداء حسب الدورة / التخصص | عبر `quizzes.course_id` / `category_id` |
-| ترتيب المحاولات (أولى مقابل متكررة) | ترتيب `results.created_at` |
-| تقدير تقريبي لمدة الاختبار | `results.updated_at - created_at` — **تقريب ضعيف، يُوسم كذلك** |
+| Metric | Source |
+|--------|--------|
+| Number of times a question appeared | `COUNT(question_result)` per `question_id` |
+| Correct-answer rate (p-value) | `AVG(points > 0)` per question |
+| Distractor selection distribution | `COUNT(*) GROUP BY option_id` |
+| Discrimination (point-biserial) | Correlation of the item score with the test score from `results.total_points` |
+| Score distribution per test | `results.total_points` |
+| Number of attempts per (student, test) | `COUNT(results)` aggregated |
+| Performance by course / specialization | Via `quizzes.course_id` / `category_id` |
+| Attempt ordering (first versus repeated) | Ordering `results.created_at` |
+| A rough estimate of test duration | `results.updated_at - created_at` — **a weak approximation, and labelled as such** |
 
-### 7.2 غير متاح — ويحتاج Phase D
+### 7.2 Not available — needs Phase D
 
-| المقياس | السبب البنيوي |
-|---------|----------------|
-| زمن الإجابة لكل سؤال | لا عمود توقيت في `question_result` |
-| زمن بدء/تسليم الاختبار | لا `started_at` / `submitted_at` في `results` |
-| الأسئلة المتروكة (skipped) | `question_result.option_id` هو **NOT NULL** — الصف لا يُنشأ أصلًا |
-| نسبة الترك (abandonment) | لا يوجد سجل لاختبار بدأ ولم يكتمل — تُسجَّل النتائج المكتملة فقط |
-| سؤال الانسحاب (drop-off) | يتبع ما سبق |
-| تغيير الإجابة | لا سجل تاريخي |
-| `question_viewed` وأحداث الواجهة | لا instrumentation |
-| تحويل Telegram → اختبار في Production | لا تتبّع روابط في Production |
+| Metric | Structural reason |
+|--------|-------------------|
+| Per-question answer time | No timestamp column in `question_result` |
+| Test start/submit time | No `started_at` / `submitted_at` in `results` |
+| Skipped questions | `question_result.option_id` is **NOT NULL** — the row is never created |
+| Abandonment rate | There is no record of a test that started and did not finish — only completed results are recorded |
+| Drop-off question | Follows from the above |
+| Answer changes | No history |
+| `question_viewed` and interface events | No instrumentation |
+| Telegram → test conversion in Production | No link tracking in Production |
 
-### 7.3 متاح بالكامل — على أسطح يملكها الـLab
+### 7.3 Fully available — on surfaces the Lab owns
 
-هذا ما يجعل P6/P7 ذات قيمة حقيقية رغم القيد: **الـLab يستطيع قياس كل شيء على سطحه الخاص.**
+This is what makes P6/P7 genuinely valuable despite the constraint: **the Lab can measure everything on its own surface.**
 
 ```text
 practice_started      answer_changed        cta_clicked
@@ -527,71 +531,71 @@ answer_selected       practice_completed   poll_answered (Telegram)
                       practice_abandoned
 ```
 
-**الحدّ الصريح:** القمع يُقاس حتى النقرة الخارجة إلى Production، ولا نرى الشراء.
-إغلاق هذه الحلقة يحتاج Phase D. **يُذكر هذا في كل تقرير تحويل** حتى لا يُقرأ الرقم خطأً.
+**The explicit limit:** the funnel is measured up to the outbound click into Production, and we do not see the purchase.
+Closing that loop needs Phase D. **This is stated in every conversion report** so the number is not misread.
 
 ---
 
-## 8. الأسئلة المبنية على نص مشترك (STEP / IELTS / القدرات اللفظية)
+## 8. Passage-Based Questions (STEP / IELTS / Verbal Aptitude)
 
-الـbrief يذكر أقسام STEP وIELTS. v1.0 تجاهلتهما تمامًا، ونموذج السؤال فيها MCQ مسطّح.
-لكن هذه الاختبارات تقوم على **مجموعات أسئلة تشترك في نص أو تسجيل واحد**.
+The brief mentions STEP and IELTS sections. v1.0 ignored both entirely, and its question model is a flat MCQ.
+But these tests are built on **groups of questions that share one text or one recording**.
 
-**الخبر الجيد:** Production يدعم ذلك بنيويًا:
+**The good news:** Production supports that structurally:
 
 ```text
-sections.name         → عنوان النص
-sections.description  → النص المشترك (TEXT)
-quiz_files.section_id → صوت للاستماع / صورة
-questions.section_id  → الأسئلة التابعة للنص
+sections.name         → the passage title
+sections.description  → the shared text (TEXT)
+quiz_files.section_id → listening audio / an image
+questions.section_id  → the questions belonging to the passage
 ```
 
-**ما يجب أن يفعله الـLab:**
+**What the Lab must do:**
 
-1. `stimulus` كائن أول الدرجة، مشتق من الـsection، له `raw/clean/search` وembedding خاص.
-2. `item_set` = (stimulus + أسئلته)، ويُتعامل معه كوحدة في الاختيار والنشر.
-3. **الـdedup يعمل على مستويين**: تكرار النص، وتكرار السؤال داخل نص. سؤالان متطابقان
-   نصيًا لكن على نصّين مختلفين **ليسا تكرارًا** — هذا خطأ شائع سيولّد false positives كثيرة
-   إن لم يُعالج.
-4. حدّ الـ2K token في EmbeddingGemma يعني أن نصًا طويلًا **لن يدخل كاملًا** في embedding واحد.
-   القاعدة: embedding للسؤال يُبنى من (السؤال + الخيارات + **مقتطف** من النص)، لا النص كله.
-5. عناصر الاستماع (`quiz_files.type = 'audio'`) خارج نطاق المعالجة النصية بالكامل، وتُوسم
-   `requires_media_review` وتُخرَج من مسارات النص.
+1. `stimulus` as a first-class object derived from the section, with its own `raw/clean/search` and its own embedding.
+2. `item_set` = (stimulus + its questions), treated as one unit in selection and publishing.
+3. **Dedup works on two levels**: duplication of the passage, and duplication of a question within a passage. Two questions that are textually
+   identical but sit on two different passages **are not duplicates** — this is a common mistake that will generate many false positives
+   if it is not handled.
+4. EmbeddingGemma's 2K-token limit means a long passage **will not fit entirely** into a single embedding.
+   The rule: a question's embedding is built from (the question + the options + an **excerpt** of the passage), not the whole passage.
+5. Listening items (`quiz_files.type = 'audio'`) are entirely outside text processing; they are flagged
+   `requires_media_review` and excluded from the text paths.
 
-**نتيجة على النشر:** أسئلة النصوص المشتركة **غير مناسبة لـTelegram polls** (حدّ 300 حرف للسؤال).
-تُنشر كرابط إلى صفحة تدريب في P7.
+**A consequence for publishing:** passage-based questions **are not suitable for Telegram polls** (a 300-character limit on the question).
+They are published as a link to a practice page in P7.
 
 ---
 
-## 9. مشاكل معروفة في Production يجب أن يعرفها الـETL
+## 9. Known Production Problems the ETL Must Know About
 
-لا نصلح هذه (Production read-only)، لكن تجاهلها يُنتج بيانات خاطئة في الـLab.
+We do not fix these (Production is read-only), but ignoring them produces wrong data in the Lab.
 
-| # | الملاحظة | تأثيرها على الـETL |
-|---|----------|--------------------|
-| 1 | `users.interested_course` INT بلا FK ولا علاقة Eloquent | إشارة تسويقية مهملة؛ قد تفيد P7 — تُفحص ولا يُعتمد عليها |
-| 2 | `categories.parent_id` INT بينما `id` هو BIGINT UNSIGNED، بلا FK | نسخ الشجرة بحذر؛ توقّع أيتامًا (orphans) وحلقات |
-| 3 | `orders.signature` يُستخدم أيضًا لتخزين كود الكوبون | لا علاقة له بالأسئلة؛ لا يُنقَل أصلًا |
-| 4 | `book_course` مهجور (استعلام 18) | لا يُنقَل |
-| 5 | `quiz_files` بلا soft delete — الحذف نهائي | مرجع وسائط قد يكون ميتًا؛ يُتحقق من وجود الملف |
-| 6 | `Lecture.$fillable` لا يشمل `youtube_id` / `upload_status` | لا يخصّ الأسئلة؛ ملاحظة فقط |
-| 7 | `Section.$fillable` لا يشمل `description` | العمود موجود وقد يكون ممتلئًا رغم ذلك — **يُقرأ ولا يُفترض فراغه** (مهم لـ§8) |
-| 8 | `orders.uuid` بلا UNIQUE؛ `amount`/`currency` نصوص | خارج النطاق |
-| 9 | Spatie بأسماء جداول غير افتراضية | أي استعلام أدوار يستخدم `user_roles` لا `model_has_roles` |
-| 10 | `quizzes.status` TINYINT، و`questions` بلا status | لا حالة على مستوى السؤال — حالة الـLab هي الحالة الوحيدة |
-| 11 | `sorte_order` (خطأ إملائي متكرر) | يُنسخ بالاسم الصحيح في الـLab مع توثيق الأصل |
-| 12 | Telescope مُفعَّل على Production | لا يُنقَل؛ قد يحتوي بيانات حساسة |
+| # | Observation | Effect on the ETL |
+|---|-------------|-------------------|
+| 1 | `users.interested_course` is an INT with no FK and no Eloquent relation | A neglected marketing signal; it may help P7 — inspect it, do not rely on it |
+| 2 | `categories.parent_id` is INT while `id` is BIGINT UNSIGNED, with no FK | Copy the tree carefully; expect orphans and cycles |
+| 3 | `orders.signature` is also used to store the coupon code | Nothing to do with questions; not copied at all |
+| 4 | `book_course` is abandoned (query 18) | Not copied |
+| 5 | `quiz_files` has no soft delete — deletion is permanent | A media reference may be dead; verify the file exists |
+| 6 | `Lecture.$fillable` does not include `youtube_id` / `upload_status` | Not question-related; noted only |
+| 7 | `Section.$fillable` does not include `description` | The column exists and may nonetheless be populated — **read it, do not assume it is empty** (important for §8) |
+| 8 | `orders.uuid` has no UNIQUE; `amount`/`currency` are strings | Out of scope |
+| 9 | Spatie with non-default table names | Any role query uses `user_roles`, not `model_has_roles` |
+| 10 | `quizzes.status` is TINYINT, and `questions` has no status | There is no question-level status — the Lab's status is the only status |
+| 11 | `sorte_order` (a recurring typo) | Copied under the correct name in the Lab, with the original documented |
+| 12 | Telescope is enabled in Production | Not copied; it may contain sensitive data |
 
 ---
 
 # Part III — Platform
 
-## 10. المعمارية المحلية (مضبوطة على 16 GB)
+## 10. The Local Architecture (tuned for 16 GB)
 
 ```text
 Mac — M1 Pro, 16 GB
 ┌────────────────────────────────────────────────────────────┐
-│  Laravel 12 + Filament (native)          ← يملك الـSchema  │
+│  Laravel 12 + Filament (native)          ← owns the schema │
 │  ├── Question Inventory & Profiling                        │
 │  ├── Duplicate Review Console                              │
 │  ├── Item Statistics Dashboard                             │
@@ -601,11 +605,11 @@ Mac — M1 Pro, 16 GB
 │  ├── Trainer Copilot                                       │
 │  └── Queue Worker (database driver)                        │
 │                    │                                        │
-│                    ▼ HTTP (JSON فقط)                        │
+│                    ▼ HTTP (JSON only)                       │
 │  FastAPI (native, uvicorn)                ← stateless      │
 │  ├── Arabic normalization                                  │
 │  ├── Hashing & lexical similarity                          │
-│  ├── Embeddings (+ الـprefixes الإلزامية)                   │
+│  ├── Embeddings (+ the mandatory prefixes)                 │
 │  ├── LLM calls (structured output + validation)             │
 │  ├── PDF extraction / OCR orchestration                    │
 │  └── Retrieval helpers                                     │
@@ -615,47 +619,47 @@ Mac — M1 Pro, 16 GB
 │  ├── gemma4:e2b-it-qat                  (Docker, memory-capped)│
 │  └── embeddinggemma:300m-qat-q4_0                            │
 │                                                             │
-│  MySQL 9.1 (Homebrew الأصلي — قراءة فقط عبر التطبيق)  ← نسخة Production       │
-│                                       تُقرأ ولا تُعدَّل      │
-│  [n8n — يُضاف في P6 فقط]                                     │
-│  [Redis — غير موجود؛ ADR-011]                                │
+│  MySQL 9.1 (native Homebrew — read-only through the app)  ← Production copy    │
+│                                       read, never modified  │
+│  [n8n — added at P6 only]                                    │
+│  [Redis — not present; ADR-011]                              │
 └────────────────────────────────────────────────────────────┘
 ```
 
-**قرار Native مقابل Docker:** على 16 GB، Docker Desktop نفسه يستهلك 1–2 GB. لذلك:
-Postgres وMySQL في Docker (نحتاج pgvector ونسخة MySQL معزولة)، وكل ما تبقى native.
-بديل أخف: OrbStack بدل Docker Desktop، أو Postgres عبر Homebrew مع pgvector.
+**The native-versus-Docker decision:** on 16 GB, Docker Desktop itself consumes 1–2 GB. Therefore:
+Postgres and MySQL in Docker (we need pgvector and an isolated MySQL copy), and everything else native.
+A lighter alternative: OrbStack instead of Docker Desktop, or Postgres via Homebrew with pgvector.
 
-## 11. بنية المستودع
+## 11. Repository Structure
 
 ```text
 injazedu-ai-lab/
 ├── apps/
-│   ├── lab/                    Laravel 12 + Filament  (يملك كل migrations)
+│   ├── lab/                    Laravel 12 + Filament  (owns every migration)
 │   └── ai-service/             FastAPI (stateless)
 ├── infrastructure/
 │   ├── docker/                 compose + Dockerfiles
 │   ├── postgres/               init.sql (CREATE EXTENSION vector)
-│   └── n8n/                    يُضاف في P6
+│   └── n8n/                    added at P6
 ├── data/
-│   ├── snapshots/              ← .gitignore — نسخ Production (حساسة)
-│   ├── fixtures/               بيانات صناعية للتطوير
-│   └── exports/                حِزَم الأسئلة المعتمدة (P9)
+│   ├── snapshots/              ← .gitignore — Production copies (sensitive)
+│   ├── fixtures/               synthetic data for development
+│   └── exports/                approved question packages (P9)
 ├── storage/
-│   ├── documents/              PDF الأصلية (private)
-│   └── extracted/              نواتج الاستخراج
+│   ├── documents/              original PDFs (private)
+│   └── extracted/              extraction outputs
 ├── sql/
-│   └── profiling/              حزمة §6 كملفات قابلة للتشغيل
+│   └── profiling/              the §6 pack as runnable files
 ├── evals/
 │   ├── duplicate-detection/    embedder + adjudicator eval sets
 │   ├── question-quality/
 │   ├── arabic/
 │   ├── pdf/
 │   └── generation/
-├── prompts/                    registry مُصدَّر من DB للمراجعة في Git
+├── prompts/                    registry exported from the DB for review in Git
 ├── docs/
-│   ├── plans/core/             هذا المستند
-│   ├── schema/                 مرجع Production
+│   ├── plans/core/             this document
+│   ├── schema/                 the Production reference
 │   ├── architecture/
 │   ├── ADR/
 │   └── runbooks/
@@ -663,407 +667,416 @@ injazedu-ai-lab/
 └── README.md
 ```
 
-## 12. النماذج المحلية
+## 12. The Local Models
 
-### 12.1 الوسوم — مُتحقَّق منها
+### 12.1 The tags — verified
 
-تم التحقق من هذه الوسوم مقابل `ollama.com` و`ai.google.dev` بتاريخ 2026-08-17.
-**وسوم v1.0 صحيحة ولا تحتاج تصحيحًا:**
+These tags were verified against `ollama.com` and `ai.google.dev` on 2026-08-17.
+**The v1.0 tags are correct and need no correction:**
 
 ```bash
 ollama pull embeddinggemma:300m-qat-q4_0    # 239 MB — 2K context
-ollama pull gemma4:e2b-it-qat               # نموذج العمل
+ollama pull gemma4:e2b-it-qat               # the working model
 ```
 
-عائلة Gemma 4 المتاحة: `e2b`، `e4b`، `12b`، `26b`، `31b` — متعددة الوسائط (نص + صورة)،
-بسياق 128K–256K، وبأنماط تفكير قابلة للضبط.
+The available Gemma 4 family: `e2b`, `e4b`, `12b`, `26b`, `31b` — multimodal (text + image),
+with a 128K–256K context and tunable thinking modes.
 
-### 12.2 EmbeddingGemma — تفاصيل حاسمة غائبة عن v1.0
+### 12.2 EmbeddingGemma — critical details missing from v1.0
 
-| الخاصية | القيمة | الأثر |
-|---------|--------|-------|
-| الأبعاد | **768**، مع Matryoshka → 512 / 256 / 128 | 512 يوفّر 33% من التخزين — **يُقاس قبل الاعتماد** |
-| السياق | **2K tokens فقط** | النصوص الطويلة تُقتطع — يجب تسجيل حالات الاقتطاع |
-| **الـPrefixes** | **إلزامية** | إغفالها يُخفّض جودة الاسترجاع بشكل ملموس |
+| Property | Value | Impact |
+|----------|-------|--------|
+| Dimensions | **768**, with Matryoshka → 512 / 256 / 128 | 512 saves 33% of storage — **measure before adopting** |
+| Context | **2K tokens only** | Long texts are truncated — truncation cases must be logged |
+| **The prefixes** | **Mandatory** | Omitting them measurably degrades retrieval quality |
 
-الصيغ الصحيحة:
+The correct forms:
 
 ```text
-# للتشابه والتكرار (متناظر — يُستخدم على الطرفين)
+# For similarity and duplication (symmetric — used on both sides)
 task: sentence similarity | query: {text}
 
-# لمقاطع المستندات في RAG
+# For document passages in RAG
 title: {heading | "none"} | text: {chunk}
 
-# لاستعلامات RAG
+# For RAG queries
 task: search result | query: {text}
 ```
 
-**قاعدة إلزامية:** الـprefix جزء من عقد الـembedding. تغييره **يُبطل كل الـvectors المخزَّنة**.
-لذلك كل صف vector يحمل `embedding_config_version` يشمل (model tag + prefix template + dimension
-+ normalization). بدون هذا، أول تغيير prefix سيُنتج مقارنات صامتة الخطأ.
+**A mandatory rule:** the prefix is part of the embedding contract. Changing it **invalidates every stored vector**.
+So every vector row carries an `embedding_config_version` covering (model tag + prefix template + dimension
++ normalization). Without it, the first prefix change will produce silently wrong comparisons.
 
-### 12.3 ميزانية الذاكرة على 16 GB
+### 12.3 The memory budget on 16 GB
 
-> **محدَّث 2026-08-23 — هذا الجدول مرجع، لا بوابة.** لا يوجد معيار قبول على رقم ذاكرة في أي
-> مشروع. القياس الفعلي على الجهاز (2026-08-23) أعطى **5,132 MiB** للـstack كاملًا مع تحميل
-> النموذجين، أي أقل بكثير من التقدير أدناه، و**~90%** منه النموذجان. كل مكوّن آخر أصغر
-> بمرتبة كاملة من تقديره: MySQL **18.6 MiB** لا ~1 GB، وPostgres **394.7 MiB** (RSS المضيف
-> لـOrbStack) لا ~1.5 GB، وLaravel **13.3 MiB**، وFastAPI **58.8 MiB**. النتيجة العملية:
-> أي عمل أداء يخصّ **المسار** (الدفعات، الترشيح، عدد نداءات النموذج) لا ضبط قواعد البيانات.
-> الخطوات اليدوية عند شعور الجهاز بالبطء في `docs/runbooks/memory-check.md`.
+> **Updated 2026-08-23 — this table is a reference, not a gate.** There is no acceptance criterion on a memory number in any
+> project. The actual measurement on the machine (2026-08-23) gave **5,132 MiB** for the full stack with both
+> models loaded — far below the estimate below — and **~90%** of it is the two models. Every other component is smaller
+> than its estimate by a full order of magnitude: MySQL **18.6 MiB** rather than ~1 GB, Postgres **394.7 MiB** (the host RSS
+> of OrbStack) rather than ~1.5 GB, Laravel **13.3 MiB**, and FastAPI **58.8 MiB**. The practical consequence:
+> any performance work belongs to the **pipeline** (batches, filtering, the number of model calls), not to database tuning.
+> The manual steps for when the machine feels slow are in `docs/runbooks/memory-check.md`.
 
-| المكوّن | تقدير |
-|---------|-------|
-| macOS + المحرر + المتصفح | 4–6 GB |
+| Component | Estimate |
+|-----------|----------|
+| macOS + editor + browser | 4–6 GB |
 | Ollama + `gemma4:e2b-it-qat` | ~3 GB |
 | Ollama + `embeddinggemma:300m-qat-q4_0` | ~0.3 GB |
-| Postgres (Docker، `shared_buffers=512MB`، سقف 1.5 GB) | ~1.5 GB |
-| MySQL (Docker، عند الـETL فقط) | ~1 GB |
+| Postgres (Docker, `shared_buffers=512MB`, capped at 1.5 GB) | ~1.5 GB |
+| MySQL (Docker, during the ETL only) | ~1 GB |
 | Laravel + queue worker | ~0.4 GB |
 | FastAPI | ~0.3 GB |
-| **المجموع** | **~11–13 GB** |
+| **Total** | **~11–13 GB** |
 
-النتيجة العملية:
+The practical consequence:
 
-- `e2b-it-qat` هو نموذج العمل الدائم.
-- `e4b` (~5.5 GB) و`12b` **لا يعملان مع الـstack كاملًا**. يُقاسان في **جلسات معزولة**:
-  إيقاف Docker والمتصفح والـworkers.
-- إعدادات Ollama:
+- `e2b-it-qat` is the permanent working model.
+- `e4b` (~5.5 GB) and `12b` **do not run alongside the full stack**. They are measured in **isolated sessions**:
+  Docker, the browser, and the workers stopped.
+- Ollama settings:
 
 ```bash
-OLLAMA_MAX_LOADED_MODELS=2      # chat + embed معًا فقط
+OLLAMA_MAX_LOADED_MODELS=2      # chat + embed together only
 OLLAMA_NUM_PARALLEL=1
 OLLAMA_KEEP_ALIVE=5m
 ```
 
-- `num_ctx=4096` كأساس. **نصيحة v1.0 صحيحة، والسبب يستحق التوضيح:** Gemma 4 يدعم 128K،
-  لكن KV cache بسياق 128K يتجاوز حجم أوزان النموذج نفسها. السياق الصغير قرار ذاكرة لا بخل.
+- `num_ctx=4096` as the baseline. **The v1.0 advice is correct, and the reason deserves spelling out:** Gemma 4 supports 128K,
+  but the KV cache at a 128K context exceeds the size of the model weights themselves. A small context is a memory decision, not stinginess.
 
-### 12.4 بروتوكول القياس — الـEmbedders أولًا
+### 12.4 The benchmarking protocol — the embedders first
 
-v1.0 تقيس النماذج التوليدية ولا تقيس الـembedders. **هذا مقلوب:** جودة كشف التكرار — وهو
-أثقل مشروع في البرنامج — يحكمها الـembedder، والـLLM يرى فقط ما يُرسله إليه الـembedder.
-embedder ضعيف يعني أزواجًا صحيحة لا تُرشَّح أبدًا، ولا يستطيع أي LLM إنقاذها.
+v1.0 benchmarks the generative models and does not benchmark the embedders. **That is backwards:** the quality of duplicate detection — the
+heaviest project in the program — is governed by the embedder, and the LLM only ever sees what the embedder sends it.
+A weak embedder means correct pairs that are never shortlisted, and no LLM can rescue them.
 
-**قياس الـEmbedders (على 400 زوج مصنّف بشريًا):**
+**Embedder benchmark (on 400 human-labelled pairs):**
 
-| النموذج | Recall@20 | Precision@T | تخزين | زمن/1K |
-|---------|-----------|-------------|-------|--------|
+| Model | Recall@20 | Precision@T | Storage | Time/1K |
+|-------|-----------|-------------|---------|---------|
 | `embeddinggemma:300m-qat-q4_0` (768) | | | | |
-| نفسه، مقتطع إلى 512 (Matryoshka) | | | | |
+| The same, truncated to 512 (Matryoshka) | | | | |
 | `bge-m3` | | | | |
 | `multilingual-e5-large` | | | | |
 
-المعيار الحاسم: **Recall@20 على أزواج التكرار العربية.** الترشيح لا يمكن تعويضه لاحقًا.
+The decisive criterion: **Recall@20 on Arabic duplicate pairs.** Shortlisting cannot be compensated for later.
 
-**قياس النماذج التوليدية:**
+**Generative model benchmark:**
 
-| الاختبار | e2b | e4b | 12b |
-|----------|-----|-----|-----|
-| دقة حكم التكرار (مقابل تصنيف بشري) | | | |
-| الالتزام بـJSON Schema (% بلا إعادة) | | | |
-| جودة العربية (تقييم مدرب) | | | |
-| الالتزام بالمصدر (grounding) | | | |
-| زمن الاستجابة الوسيط | | | |
-| الذاكرة المقيمة | | | |
+| Test | e2b | e4b | 12b |
+|------|-----|-----|-----|
+| Duplicate-verdict accuracy (against human labels) | | | |
+| JSON Schema compliance (% with no retry) | | | |
+| Arabic quality (trainer assessment) | | | |
+| Source grounding | | | |
+| Median response latency | | | |
+| Resident memory | | | |
 
-مسموح باختيار نموذج مختلف لكل مهمة (مثلًا e2b للتصنيف، e4b للتوليد) — **بعد** القياس لا قبله.
+Choosing a different model per task (say e2b for classification, e4b for generation) is permitted — **after** the benchmark, not before.
 
-## 13. ميزانيات السعة (Throughput & Capacity)
+## 13. Throughput & Capacity Budgets
 
-القسم الأهم الذي كان غائبًا تمامًا عن v1.0. على 16 GB، السعة قيد حقيقي لا تفصيل.
+The most important section that was entirely absent from v1.0. On 16 GB, capacity is a real constraint, not a detail.
 
-### 13.1 الـEmbeddings
-
-```text
-25,000 سؤال × 2 embeddings (stem + full) = 50,000 نداء
-embeddinggemma 300m q4 على M1 Pro ≈ 30–80/ثانية
-⇒ 10–30 دقيقة.  آمن تمامًا.
-```
-
-### 13.2 حُكم الـLLM — القيد الحقيقي
+### 13.1 The embeddings
 
 ```text
-top-K = 20 لكل سؤال على 25K  →  ~250,000 زوج غير موجّه
-بعد استثناء التطابق التام وحدّ التشابه  →  تقدير 20,000–60,000 زوج
-
-e2b، مخرَج JSON قصير (~150 token)  ≈  3–6 ثانية/زوج
-30,000 زوج × 4 ثوان  =  ~33 ساعة متصلة
+25,000 questions × 2 embeddings (stem + full) = 50,000 calls
+embeddinggemma 300m q4 on an M1 Pro ≈ 30–80/second
+⇒ 10–30 minutes.  Entirely safe.
 ```
 
-**الاستنتاج: لا يمكن تمرير كل الـcandidates على LLM.** لذلك الاستراتيجية بالنطاقات:
+### 13.2 The LLM verdict — the real constraint
 
-| النطاق | المعالجة | التكلفة |
-|--------|----------|---------|
-| تطابق hash تام | عنقود آلي، بلا LLM | صفر |
-| `sim ≥ T_high` | عنقود `probable_duplicate` آليًا + تدقيق بشري لـ5% عينة | صفر LLM |
-| `T_low < sim < T_high` | **حكم LLM** — هذا هو النطاق الوحيد | الهدف: ≤ 5,000 زوج ≈ 6 ساعات (دفعة ليلية) |
-| `sim ≤ T_low` | إسقاط | صفر |
+```text
+top-K = 20 per question over 25K  →  ~250,000 undirected pairs
+after excluding exact matches and applying a similarity floor  →  an estimated 20,000–60,000 pairs
 
-`T_high` و`T_low` **لا تُثبَّت الآن** — تُعايَر على مجموعة التقييم لتحقيق الهدف في §21.
-هذه هي «Uncertainty Band» وهي ما يجعل المشروع منتهيًا بدل مفتوح.
+e2b, a short JSON output (~150 tokens)  ≈  3–6 seconds/pair
+30,000 pairs × 4 seconds  =  ~33 continuous hours
+```
 
-**قواعد التشغيل:** الدفعات الثقيلة تعمل ليلًا؛ وضع `--low-memory` يوقف الـworker أثناء القياس.
+**The conclusion: it is not possible to run every candidate through an LLM.** Hence the banded strategy:
 
-### 13.3 ميزانية المراجعة البشرية
+| Band | Handling | Cost |
+|------|----------|------|
+| Exact hash match | Automatic cluster, no LLM | Zero |
+| `sim ≥ T_high` | Automatically clustered as `probable_duplicate` + a human spot-check on a 5% sample | Zero LLM |
+| `T_low < sim < T_high` | **LLM verdict** — this is the only band | Target: ≤ 5,000 pairs ≈ 6 hours (an overnight batch) |
+| `sim ≤ T_low` | Dropped | Zero |
 
-| المهمة | الحجم | الزمن/الوحدة | المجموع | المراجع |
-|--------|-------|--------------|---------|---------|
-| مجموعة تقييم التكرار | 400 زوج | 45–90 ث | **5–10 ساعات** | مدرشن + مدرب للحكم النهائي |
-| مراجعة أزواج النطاق غير المؤكد | ≤ 1,500 زوج | 30–60 ث | **12–25 ساعة** | مدرشن |
-| مجموعة تقييم الجودة | 300 سؤال | 60–120 ث | **5–10 ساعات** | مدرب |
-| تصعيد التكرار المتعارض | حسب الاكتشاف | 2–5 د | متغيّر — **أولوية عالية** | مدرب |
-| اعتماد النشر (P6) | 1–3/يوم | 2–3 د | **~15 د/يوم** | مدرشن |
-| مراجعة drafts (P9) | 100 مهمة | 3–8 د | **5–13 ساعة** | مدرب |
+`T_high` and `T_low` are **not fixed now** — they are calibrated on the evaluation set to hit the target in §21.
+This is the "uncertainty band," and it is what makes the project finite rather than open-ended.
 
-**المجموع التقريبي: 30–60 ساعة عمل بشري موزّعة على البرنامج.** هذا رقم قابل للإدارة إذا
-جُدول، وقاتل إذا افتُرض. لذلك: **حصص مراجعة مجدولة، لا مراجعة عند الحاجة.**
+**Operating rules:** heavy batches run overnight; a `--low-memory` mode stops the worker during measurement.
 
-**تقليل الحجم بـActive Learning:** بعد أول 150 زوجًا مصنَّفًا، يُعاد تدريب الحدود، ويُراجَع
-البشر فقط ما هو قريب من حدّ القرار أو ما اختلف فيه الـLLM مع الـembedder. هذا يقلّل حجم
-المراجعة إلى النصف تقريبًا مقابل نفس دقة المعايرة.
+### 13.3 The human review budget
+
+| Task | Volume | Time/unit | Total | Reviewer |
+|------|--------|-----------|-------|----------|
+| Duplicate evaluation set | 400 pairs | 45–90 s | **5–10 hours** | Moderator + a trainer for the final verdict |
+| Reviewing uncertain-band pairs | ≤ 1,500 pairs | 30–60 s | **12–25 hours** | Moderator |
+| Quality evaluation set | 300 questions | 60–120 s | **5–10 hours** | Trainer |
+| Conflicting-duplicate escalation | As discovered | 2–5 min | Variable — **high priority** | Trainer |
+| Publishing approval (P6) | 1–3/day | 2–3 min | **~15 min/day** | Moderator |
+| Draft review (P9) | 100 tasks | 3–8 min | **5–13 hours** | Trainer |
+
+**Approximate total: 30–60 hours of human work spread across the program.** That is a manageable number if it is
+scheduled, and a fatal one if it is assumed. Therefore: **scheduled review slots, not review on demand.**
+
+**Reducing the volume with active learning:** after the first 150 labelled pairs, the thresholds are retrained, and humans
+review only what is close to the decision boundary or where the LLM disagreed with the embedder. This roughly halves the review
+volume for the same calibration accuracy.
 
 ### 13.4 pgvector
 
 ```text
-50,000 vector × 768 بُعد × 4 bytes ≈ 154 MB
+50,000 vectors × 768 dimensions × 4 bytes ≈ 154 MB
 ```
 
-- حجم صغير: **المسح التام (exact scan) كافٍ ابتداءً — لا index.**
-- HNSW (`m=16، ef_construction=64`) يُضاف عند الحاجة لزمن استجابة تفاعلي فقط.
-- `vector(768)`، تطبيع إلى وحدة الطول، ومسافة cosine (`vector_cosine_ops`).
-- `halfvec(768)` يخفض التخزين للنصف إن لزم.
-- إن نجح Matryoshka 512 في القياس → توفير 33% مجانًا.
+- A small size: **an exact scan is sufficient to begin with — no index.**
+- HNSW (`m=16, ef_construction=64`) is added only when interactive latency requires it.
+- `vector(768)`, normalized to unit length, and cosine distance (`vector_cosine_ops`).
+- `halfvec(768)` halves the storage if needed.
+- If Matryoshka 512 holds up in the benchmark → a free 33% saving.
 
-## 14. حماية البيانات والخصوصية والملكية
+## 14. Data Protection, Privacy, and Ownership
 
-### 14.1 النسخة المحلية من Production — قواعد إلزامية
+### 14.1 The local Production copy — mandatory rules
 
-النسخة الموجودة على الـMac تحتوي بيانات شخصية حقيقية:
-`users` (إيميلات، جوالات)، `orders` (بيانات بطاقات جزئية)، `certificates.id_number`
-(**هوية وطنية**)، `complaints`، `social_providers`.
+The copy on the Mac contains real personal data:
+`users` (emails, phone numbers), `orders` (partial card data), `certificates.id_number`
+(**national ID**), `complaints`, `social_providers`.
 
 ```text
-[ ] تُحفَظ على قرص مشفَّر بـFileVault.
-[ ] لا توجد أبدًا داخل مجلد المستودع.
-[ ] لا توجد أبدًا في مجلد يُزامن مع iCloud / Dropbox / Google Drive.
-[ ] مسارها مضاف إلى global gitignore.
-[ ] تُجدَّد بنسخة جديدة بدل تركها تتقادم، مع تسجيل snapshot_taken_at.
-[ ] لا تُنسخ إلى أي جهاز آخر ولا إلى VPS.
+[ ] Stored on a FileVault-encrypted disk.
+[ ] Never inside the repository folder.
+[ ] Never in a folder synced to iCloud / Dropbox / Google Drive.
+[ ] Its path is added to the global gitignore.
+[ ] Fixed at snapshot_taken_at = 2026-08-07 for the whole program — no refresh, no
+    cadence, no age gate (operator decision 2026-08-25). The date is recorded and
+    displayed as context, never used as a threshold.
+[ ] Never copied to any other machine or to the VPS.
 ```
 
-### 14.2 قائمة السماح للـETL
+### 14.2 The ETL allowlist
 
-الـLab **لا يستقبل PII أبدًا**. الـETL يعمل بقائمة سماح صريحة، لا باستثناءات.
+The Lab **never receives PII**. The ETL works from an explicit allowlist, not from exceptions.
 
-> **أين تُفرَض (محدَّث 2026-08-23):** القوائم تُفرَض في **طبقة التطبيق** — `config/lab.php → source_tables` (ما يُنقَل) و`profile_tables` (ما يُقرأ تجميعيًا فقط)، و`SourceReader` الذي يرفض بالاسم أي جدول خارج القائمتين، فوق اتصال `injazedu` بلا هدف كتابة ومستمع يرمي على أي عبارة ليست قراءة. لا يوجد مستخدم MySQL مخصّص ولا `GRANT`؛ راجع `docs/ADR/ADR-021.md` للقرار والمخاطرة المقبولة.
+> **Where it is enforced (updated 2026-08-23):** the lists are enforced in the **application layer** — `config/lab.php → source_tables` (what is copied) and `profile_tables` (what is read as aggregates only), plus `SourceReader`, which refuses by name any table outside the two lists, on top of an `injazedu` connection with no write host and a listener that throws on any statement that is not a read. There is no dedicated MySQL user and no `GRANT`; see `docs/ADR/ADR-021.md` for the decision and the accepted risk.
 
-**مسموح بالكامل:**
+**Fully allowed:**
 ```text
-categories, courses (metadata فقط), chapters, lectures (العنوان والترتيب فقط),
+categories, courses (metadata only), chapters, lectures (title and order only),
 quizzes, sections, questions, options, quiz_files
 ```
 
-**مسموح بعد إخفاء الهوية:**
+**Allowed after anonymization:**
 ```text
 results, question_result
-  → user_id يُستبدل بـ student_ref = HMAC-SHA256(pepper, user_id)
-  → الـpepper في .env فقط، غير مُودَع في Git، ولا يُخزَّن في قاعدة الـLab
+  → user_id is replaced by student_ref = HMAC-SHA256(pepper, user_id)
+  → the pepper lives in .env only, is never committed to Git, and is never stored in the Lab database
 ```
 
-هذا يسمح بعدّ سلوك كل طالب (محاولات، تقدّم، تمييز) **دون معرفة هويته** — وهو كل ما تحتاجه
-التحليلات. لا يحتاج أي نموذج معرفة اسم طالب لتحليل أداء سؤال.
+This allows counting each student's behaviour (attempts, progress, discrimination) **without knowing who they are** — and that is all the
+analytics need. No model needs to know a student's name in order to analyse a question's performance.
 
-**مسموح بالقراءة التجميعية فقط — ولا تُنقَل أبدًا (محدَّث 2026-08-23):**
+**Allowed for aggregate reads only — and never copied (updated 2026-08-23):**
 ```text
 course_user, course_order, orders, user_roles, roles, book_course
 ```
 
-هذه الستة تُقرأ **عدًّا فقط** في حزمة §6 (الاستعلامات 15 و16 و18)، وهي التي تحسم سؤالين
-لا يتقدّم البرنامج بدونهما: أيّ جدول يسجّل الالتحاق فعلًا (`course_user` مقابل `course_order`)،
-ومن هم مستخدمو `course_user` — طلاب أم مدرّبون. القراءة مسموحة، النقل ممنوع. الضمانة التي
-تبقى هي الضمانة التي تهمّ: **لا عمود PII في قاعدة الـLab**، ويثبته `NoPiiInLabSchemaTest`.
+These six are read **as counts only** in the §6 pack (queries 15, 16 and 18), and they settle two questions
+without which the program cannot move: which table actually records enrollment (`course_user` versus `course_order`),
+and who the users in `course_user` are — students or trainers. Reading is allowed, copying is not. The guarantee that
+remains is the guarantee that matters: **no PII column in the Lab database**, proven by `NoPiiInLabSchemaTest`.
 
-**ممنوع قراءتها ونقلها معًا:**
+**Forbidden to read and to copy alike:**
 ```text
 users, book_order, coupons, certificates, complaints, complaint_responses,
 social_providers, personal_access_tokens, paymob_logs, zoom_users, audits,
 telescope_*, google_oauth_tokens, failed_jobs, settings
 ```
 
-### 14.3 سطح الـLab العام (P7) — لا PII بالتصميم
+### 14.3 The Lab's public surface (P7) — no PII by design
 
-- لا تسجيل دخول، لا إيميل، لا جوال، لا اسم.
-- معرّف جلسة أول-طرف عشوائي، بلا ربط بهوية.
-- الأحداث تُخزَّن بالمعرّف المجهول فقط.
-- لا يُجمع أي شيء لا يُستخدم في مقياس معلن.
+- No login, no email, no phone number, no name.
+- A random first-party session identifier, unlinked to any identity.
+- Events are stored against the anonymous identifier only.
+- Nothing is collected that is not used in a declared metric.
 
-### 14.4 حقن الأوامر عبر المستندات (Prompt Injection)
+### 14.4 Prompt injection via documents
 
-نصوص PDF وOCR **بيانات لا أوامر**. الكتب مصادر شبه موثوقة، لكن القاعدة تُطبَّق دائمًا:
+PDF and OCR text is **data, not instructions**. The books are semi-trusted sources, but the rule always applies:
 
-- الـchunks المسترجَعة تُوضع في حقل بيانات محدّد بفواصل واضحة، لا في تعليمات النظام.
-- الـsystem prompt يذكر صريحًا أن المحتوى المسترجَع مرجع فقط وأن أي تعليمات داخله تُتجاهل.
-- مخرَج الـgenerator يُتحقَّق منه بـSchema، ولا يُنفَّذ منه شيء.
+- Retrieved chunks are placed in a designated data field with clear delimiters, never in the system instructions.
+- The system prompt states explicitly that retrieved content is reference material only and that any instructions inside it are ignored.
+- The generator's output is validated against a schema, and nothing in it is executed.
 
-### 14.5 الملكية الفكرية ومصدر الأسئلة
+### 14.5 Intellectual property and the origin of the questions
 
-هذه مخاطرة حقيقية يجب تسميتها. بنك من 25,000 سؤال في مجال اختبارات رسمية **قد يحتوي أسئلة
-منقولة حرفيًا من مواد رسمية محمية**.
+This is a real risk that must be named. A bank of 25,000 questions in the domain of official examinations
+**may contain questions copied verbatim from protected official material**.
 
-الموقف العملي:
+The practical position:
 
-- يُسجَّل `source_origin` لكل سؤال: `authored` / `book_derived` / `unknown` / `suspected_official`.
-- الحقل الافتراضي `unknown` — ولا يُدّعى غير ذلك بلا دليل.
-- عند توفّر أي مادة رسمية لدى الفريق، يُشغَّل مطابِق حرفي للكشف عن التطابقات ووسمها.
-- التوليد في P9 يُسنَد إلى **كتب الدورات المرخّصة**، ولا يُطلب من النموذج إعادة إنتاج
-  أسئلة اختبار حقيقية.
-- يُوصى بمراجعة قانونية لمصدر البنك الحالي. هذا قرار إدارة لا هندسة، لكن الخطة توفّر البيانات
-  التي تُبنى عليها.
+- Record a `source_origin` for every question: `authored` / `book_derived` / `unknown` / `suspected_official`.
+- The default is `unknown` — and nothing else is claimed without evidence.
+- When any official material is available to the team, run a literal matcher to detect and flag the matches.
+- Generation in P9 is grounded in the **licensed course books**, and the model is never asked to reproduce
+  real exam questions.
+- A legal review of the current bank's provenance is recommended. That is a management decision, not an engineering one, but the plan
+  provides the data it would be based on.
 
-### 14.6 دوام البيانات — لا نسخ احتياطي محليًا (محدَّث 2026-08-23)
+### 14.6 Data durability — no local backups (updated 2026-08-23)
 
-**قرار المشغّل 2026-08-23: لا يوجد أي مطلب نسخ احتياطي أو استرجاع في البرنامج المحلي.**
+**Operator decision, 2026-08-23: there is no backup or restore requirement anywhere in the local program.**
 
-الجهاز بيئة تطوير، والنسخة من Production **قابلة للاستهلاك** — تُعاد بأخذ نسخة جديدة، لا
-باسترجاع. وكل ما في قاعدة الـLab قابل لإعادة الإنتاج: أعِد الاستيراد، وأعِد تشغيل المسار.
-النسخ الاحتياطي الليلي على نفس الجهاز يحمي من فقدان القرص فقط، وهو أضعف احتمال هنا وأغلى
-ثمنًا في الوقت.
+The machine is a development environment, and the Production copy is **disposable** — it is renewed by taking a fresh copy, not
+by restoring one. And everything in the Lab database is reproducible: re-run the import, re-run the pipeline.
+A nightly backup on the same machine protects against disk loss alone, which is the least likely outcome here and the most expensive
+in time.
 
-الاستثناء الوحيد هو **قرارات المراجعة البشرية** (P2 وما بعده): لا مصدر آخر لها. حمايتها
-مسألة **الانتقال إلى التشغيل الحقيقي** — قاعدة بيانات حقيقية على بنية تحتية حقيقية — لا
-مسألة محلية، ولا معيار قبول في أي مشروع من P0…P9.
+The one exception is the **human review decisions** (P2 onward): they have no other source. Protecting them is a
+matter of **moving to real operation** — a real database on real infrastructure — not a
+local matter, and not an acceptance criterion in any project from P0 to P9.
 
 ---
 
-# Part IV — المشاريع
+# Part IV — The Projects
 
-كل مشروع بنفس القالب: الهدف، الاعتماديات، المدخلات، النطاق، خارج النطاق، جداول الـLab،
-المخرجات، تقدير الجهد، حدود القبول/الرفض، المخاطر، معايير الاعتماد.
+Every project follows the same template: goal, dependencies, inputs, scope, out of scope, Lab tables,
+outputs, effort estimate, accept/reject thresholds, risks, acceptance criteria.
 
-تقديرات الجهد بـ**أيام عمل مركّز لمطوّر واحد** — لا أيام تقويمية.
+Effort estimates are in **focused working days for a single developer** — not calendar days.
 
 ---
 
 ## 15. P0 — AI Lab Foundation
 
-### الهدف
-بيئة محلية موحّدة تسمح ببناء كل ما بعدها دون لمس Production — **بأصغر عدد ممكن من الخدمات**.
+### Goal
+A unified local environment that allows everything after it to be built without touching Production — **with the smallest possible number of services**.
 
-### الاعتماديات
-لا شيء.
+### Dependencies
+None.
 
-### النطاق
+### Scope
 
 ```text
 Laravel 12 + Filament        (native)
 FastAPI                      (native, uvicorn)
-PostgreSQL 17 + pgvector     (Docker، سقف ذاكرة)
-MySQL 8                      (Docker، لقراءة نسخة Production فقط)
-Ollama                       (native، Metal)
+PostgreSQL 17 + pgvector     (Docker, memory-capped)
+MySQL 8                      (Docker, to read the Production copy only)
+Ollama                       (native, Metal)
 Queue worker                 (database driver — ADR-011)
 Logging + health checks
 ```
 
-### خارج النطاق
-**Redis** (ADR-011) — **n8n** (ADR-012) — أي اتصال بـProduction — أي معالجة بيانات حقيقية.
+### Out of scope
+**Redis** (ADR-011) — **n8n** (ADR-012) — any connection to Production — any real data processing.
 
-### فحوص الصحة المطلوبة
+### Required health checks
 
 ```text
 Laravel  → PostgreSQL
 Laravel  → FastAPI
-Laravel  → Queue (job ينفَّذ فعلًا)
+Laravel  → Queue (a job actually executes)
 FastAPI  → PostgreSQL
 FastAPI  → Ollama (chat)
 FastAPI  → Ollama (embed)
 Laravel  → MySQL snapshot (read-only)
-pgvector → حفظ واسترجاع vector واحد بنجاح
+pgvector → one vector saved and retrieved successfully
 ```
 
-### قواعد التطوير
+### Development rules
 
 ```text
-[ ] كل الأسرار في .env، ولا يُرفع .env إلى Git.
-[ ] لا credentials من Production محليًا.
-[ ] Ollama على 11434 محليًا فقط، لا يُعرَّض.
-[ ] PostgreSQL وMySQL لا يُعرَّضان.
-[ ] القراءة-فقط نحو النسخة المحلية مفروضة في التطبيق بثلاث طبقات، وكلٌّ منها يمنع بمفرده
-    (اتصال بلا هدف كتابة · مستمع يرمي على أي عبارة ليست قراءة · قائمتا سماح: 11 جدولًا
-    للنقل و6 للقراءة التجميعية) — ADR-021، §14.2 محدَّثة 2026-08-23.
+[ ] All secrets in .env, and .env is never pushed to Git.
+[ ] No Production credentials locally.
+[ ] Ollama on 11434 locally only, never exposed.
+[ ] PostgreSQL and MySQL are not exposed.
+[ ] Read-only access to the local copy is enforced in the application in three layers, each of which
+    blocks on its own (a connection with no write host · a listener that throws on any statement that is not
+    a read · two allowlists: 11 tables for copying and 6 for aggregate reads) — ADR-021, §14.2 updated 2026-08-23.
 ```
 
-### المخرجات
-stack يعمل — endpoints للصحة — `.env.example` — `docker-compose.yml` — README للتنصيب —
-سجلات أساسية — اختبار queue — اختبار Ollama — اختبار embedding مع الـprefix الصحيح.
+### Outputs
+A working stack — health endpoints — `.env.example` — `docker-compose.yml` — an installation README —
+basic logs — a queue test — an Ollama test — an embedding test with the correct prefix.
 
-### تقدير الجهد
-**3–5 أيام**
+### Effort estimate
+**3–5 days**
 
-### حدود القبول/الرفض
-- إذا لم يستقر Ollama مع النموذجين معًا → يُخفَّض `num_ctx` أو تُفصَل دفعات الـembedding عن
-  الـchat. هذا **تشخيص وقت التشغيل**، لا بوابة قبول (محدَّث 2026-08-23).
-- **أُلغيت بوابة الـ13 GB** (2026-08-23): لا معيار قبول على رقم ذاكرة. القياس الفعلي وضع
-  الـstack عند 5,132 MiB، و§12.3 صارت مرجعًا لا بوابة. الخطوات اليدوية في
+### Accept/reject thresholds
+- If Ollama does not stay stable with both models loaded → lower `num_ctx` or separate the embedding batches from
+  the chat. This is a **runtime diagnosis**, not an acceptance gate (updated 2026-08-23).
+- **The 13 GB gate was cancelled** (2026-08-23): there is no acceptance criterion on a memory number. The actual measurement put
+  the stack at 5,132 MiB, and §12.3 became a reference rather than a gate. The manual steps are in
   `docs/runbooks/memory-check.md`.
 
-### المخاطر
-| المخاطرة | التخفيف |
-|----------|---------|
-| Docker Desktop يستهلك ذاكرة مفرطة | OrbStack أو Postgres native |
-| إغراء إضافة خدمات "لأنها ستُحتاج لاحقًا" | ADR-011/012 مكتوبان لهذا السبب تحديدًا |
+### Risks
+| Risk | Mitigation |
+|------|------------|
+| Docker Desktop consumes excessive memory | OrbStack, or native Postgres |
+| The temptation to add services "because they will be needed later" | ADR-011/012 are written for exactly this reason |
 
-### معايير الاعتماد
+### Acceptance criteria
 ```text
-[ ] الـstack يبدأ بشكل متوقّع بأمر واحد.
-[ ] Laravel ينشئ job، والـworker ينفّذه.
-[ ] FastAPI ينادي Ollama ويعيد JSON صالحًا.
-[ ] embedding بـ768 بُعدًا يُحفَظ في pgvector ويُسترجَع.
-[ ] إعادة التشغيل لا تفقد بيانات PostgreSQL.
-[ ] نسخة MySQL تُقرأ ولا تقبل الكتابة.
+[ ] The stack starts predictably with a single command.
+[ ] Laravel creates a job, and the worker executes it.
+[ ] FastAPI calls Ollama and returns valid JSON.
+[ ] A 768-dimension embedding is saved to pgvector and retrieved.
+[ ] Restarting does not lose PostgreSQL data.
+[ ] The MySQL copy is read and refuses writes.
 ```
 
 ---
 
 ## 16. P1 — Production Profiling & Question Mirror
 
-### الهدف
-**قياس** البنك أولًا، ثم إنشاء مرآة محلية أمينة له.
+### Goal
+**Measure** the bank first, then create a faithful local mirror of it.
 
-v1.0 بدأت بـ«استورد 25 ألف سؤال». v2.0 تبدأ بـ«اعرف ماذا لديك فعلًا» — لأن كل تقدير في
-هذا المستند مبني على أرقام غير مُقاسة بعد.
+v1.0 started with "import 25 thousand questions." v2.0 starts with "find out what you actually have" — because every estimate in
+this document rests on numbers that have not yet been measured.
 
-### الاعتماديات
+### Dependencies
 P0.
 
-### المدخلات
-النسخة المحلية من MySQL. حزمة الاستعلامات في §6.
+### Inputs
+The local MySQL copy. The query pack in §6.
 
-### النطاق
+### Scope
 
-**المرحلة 1 — الفحص (1–2 يوم):**
-تشغيل §6 كاملة، وتوليد تقرير مكتوب فيه: العدد الحقيقي، سلامة الجواب الصحيح، توزيع الخيارات،
-نسبة HTML/الصور، حجم البيانات السلوكية، **وحسم غموض التسجيل** (استعلام 15/16).
-تحديث §13 بالأرقام الحقيقية قبل المضي.
+**Phase 1 — Profiling (1–2 days):**
+Run all of §6 through `php artisan lab:profile` — inside the three read-only layers, never a direct `mysql` client — and
+**persist** the results: the full result set into `source_snapshots.profiling_results` (JSONB), and a summary generated from
+that JSON into `docs/reports/p1-profiling.md`. The generated report is regenerable and never hand-maintained. It covers the
+real count, correct-answer integrity, the option distribution, the HTML/image rate, the volume of behavioural data,
+**and the resolution of the enrollment ambiguity** (queries 15/16). Update §13 with the real numbers.
 
-**المرحلة 2 — الـETL (4–6 أيام):**
-MySQL → PostgreSQL، بقائمة السماح في §14.2، مع:
-- الحفاظ على معرّفات Production كما هي.
-- نسخ الصفوف المحذوفة منطقيًا مع `source_deleted_at`.
-- اشتقاق `correct_option_ids` و`option_index` بقواعد §5.1 و§5.2.
-- `payload_hash` محدَّد بدقة: SHA256 على تسلسل مُطبَّع (JSON مرتّب المفاتيح) من
-  (`name`, `description`, `hint`, والخيارات مرتّبة بـ`option_index` مع `name` و`points`).
-- `import_errors` يسجّل كل شذوذ بدل إخفائه.
-- idempotent: إعادة التشغيل تُحدِّث المتغيّر ولا تُنشئ تكرارًا.
+Three findings — and only three — block downstream code, because each changes what gets built: the meaning of multi-key
+(queries 3+4, which fixes `answer_key_state` and therefore `payload_hash`), the enrollment table (queries 15+16), and a
+`correct_count = 0` rate above 2% (query 3), which reopens the scope below. Everything else in the pack is recorded and read,
+and blocks nothing.
 
-**المرحلة 3 — لوحة الجرد (2 أيام):**
-شاشة Filament تعرض الأعداد والتوزيعات والمشاكل، وتسمح بالانتقال من رقم إلى الأسئلة نفسها.
+**Phase 2 — The ETL (4–6 days):**
+MySQL → PostgreSQL, under the allowlist in §14.2, with:
+- Production identifiers preserved exactly as they are.
+- Soft-deleted rows copied with `source_deleted_at`.
+- `correct_option_ids` and `option_index` derived by the rules in §5.1 and §5.2.
+- `payload_hash` defined precisely: SHA256 over a normalized serialization (key-sorted JSON) of
+  (`name`, `description`, `hint`, and the options ordered by `option_index` with `name` and `points`).
+- `import_errors` records every anomaly instead of hiding it.
+- Idempotent: re-running updates what changed and creates no duplicates.
 
-### خارج النطاق
-تطبيع عربي (P2) — كشف تكرار (P2) — أي تصنيف — أي اتصال حيّ بـProduction.
+**Phase 3 — The inventory console (2 days):**
+A Filament screen showing the counts, the distributions, and the problems, and allowing navigation from a number down to the questions themselves.
 
-### جداول الـLab
+### Out of scope
+Arabic normalization (P2) — duplicate detection (P2) — any classification — any live connection to Production.
+
+### Lab tables
 
 ```text
 source_snapshots        (snapshot_taken_at, source_row_counts, notes)
@@ -1073,104 +1086,105 @@ source_quizzes          (course_id NULL ⇒ general)
 source_sections         (+ stimulus fields — §8)
 source_questions        (raw_text, source_deleted_at, payload_hash, source_origin)
 source_question_options (option_index, points, is_correct_derived)
-source_media            (من quiz_files — النوع والمستوى والمسار)
-source_results          (student_ref مُعمَّى)
-source_answers          (من question_result — student_ref)
+source_media            (from quiz_files — type, level, and path)
+source_results          (pseudonymized student_ref)
+source_answers          (from question_result — student_ref)
 import_runs
 import_errors
 ```
 
-**ملاحظة:** لا يوجد `source_question_exam_links` — لأن العلاقة أب واحد (§2.1).
-هذا تصحيح مباشر لـv1.0.
+**Note:** there is no `source_question_exam_links` — because the relation has a single parent (§2.1).
+This is a direct correction of v1.0.
 
-### فحوص التحقق عند الاستيراد
+### Validation checks at import time
 
 ```text
 Missing options            Empty question stem
 Zero correct options       Multiple correct options
 Duplicate option text      order ties
 Broken/unbalanced HTML     Stem is only an image
-Orphan section/quiz        Category orphan (parent_id مفقود)
-Stimulus بلا أسئلة         سؤال بلا section
+Orphan section/quiz        Category orphan (parent_id missing)
+Stimulus with no questions A question with no section
 ```
 
-### المخرجات
-تقرير الفحص المكتوب — سكربتات ETL قابلة للتكرار — الجداول ممتلئة — لوحة جرد —
-سجل أخطاء مرئي — **§13 محدَّثة بأرقام حقيقية**.
+### Outputs
+The written profiling report — repeatable ETL scripts — the tables populated — an inventory console —
+a visible error log — **§13 updated with real numbers**.
 
-### تقدير الجهد
-**7–10 أيام**
+### Effort estimate
+**7–10 days**
 
-### حدود القبول/الرفض
-- إذا كانت نسبة `correct_count = 0` أعلى من 2% → **يتوقف مسار الـdedup**، ويصبح تصحيح
-  الأسئلة المعطوبة أول مخرَج يُسلَّم للفريق. سؤال بلا جواب صحيح يمسّ طالبًا الآن.
-- إذا كان `has_description` أقل من 30% → مسار الشرح في P9 يبدأ من الصفر، ويُحذف من التقديرات
-  استخدامه كأمثلة few-shot.
+### Accept/reject thresholds
+- If the `correct_count = 0` rate is above 2% → **the dedup track stops**, and fixing
+  the broken questions becomes the first deliverable handed to the team. A question with no correct answer affects a student right now.
+- If `has_description` is below 30% → the explanation path in P9 starts from zero, and using it as few-shot examples
+  is removed from the estimates.
 
-### المخاطر
-| المخاطرة | التخفيف |
-|----------|---------|
-| النسخة المحلية قديمة | تسجيل `snapshot_taken_at` وإظهاره في كل تقرير |
-| HTML فاسد يُفشل الـparsing | عزل الأخطاء في `import_errors` والمتابعة، لا إيقاف الدفعة |
-| تسرُّب PII عبر خطأ في الـETL | قائمة سماح صريحة + اختبار يفشل إذا ظهر عمود ممنوع |
+### Risks
+| Risk | Mitigation |
+|------|------------|
+| The local copy is dated 2026-08-07 by decision | `snapshot_taken_at` is recorded once and printed on every report and every screen, so every number is read in its own frame. Age is context, never a gate (§14.1) |
+| Malformed HTML breaks parsing | Isolate the errors into `import_errors` and continue; never halt the batch |
+| PII leaking through an ETL bug | An explicit allowlist + a test that fails if a forbidden column appears |
 
-### معايير الاعتماد
+### Acceptance criteria
 ```text
-[ ] تقرير الفحص مكتوب ومراجَع قبل بناء الـETL.
-[ ] كل الأسئلة تُستورد، ومعرّف Production محفوظ في كل صف.
-[ ] لا صف واحد يُعدَّل في Production ولا في النسخة المحلية.
-[ ] الاستيراد قابل للتكرار وidempotent (payload_hash).
-[ ] أخطاء التحقق مرئية وقابلة للتصفية في الواجهة.
-[ ] لا PII في قاعدة الـLab — يثبته اختبار آلي.
-[ ] كل رقم في اللوحة قابل للنقر للوصول إلى الأسئلة نفسها.
+[ ] The profiling pack has been run and its results persisted and read before the ETL
+    derives any field that depends on them.
+[ ] Every question is imported, and the Production id is preserved on every row.
+[ ] Not a single row is modified in Production or in the local copy.
+[ ] The import is repeatable and idempotent (payload_hash).
+[ ] Validation errors are visible and filterable in the interface.
+[ ] No PII in the Lab database — proven by an automated test.
+[ ] Every number on the console is clickable through to the questions themselves.
 ```
 
 ---
 
 ## 17. P2 — Arabic Normalization & Duplicate Intelligence
 
-### الهدف
-كشف التكرار الحقيقي دون حذف أي بيانات، **وضمن ميزانية حسابية منتهية**.
+### Goal
+Detect the real duplication without deleting any data, **and within a finite compute budget**.
 
-### الاعتماديات
+### Dependencies
 P1.
 
-### الطبقات النصية (محفوظة من v1.0 — صحيحة)
+### The text layers (preserved from v1.0 — correct)
 
 ```text
-raw_text     ← كما هو في Production، لا يُعدَّل أبدًا
-clean_text   ← تنظيف تقني فقط: HTML، مسافات، Unicode. المعنى محفوظ
-search_text  ← نسخة المقارنة والبحث
+raw_text     ← exactly as it is in Production, never modified
+clean_text   ← technical cleaning only: HTML, whitespace, Unicode. Meaning preserved
+search_text  ← the comparison and search representation
 ```
 
-`search_text` مسموح فيه: تطبيع Unicode (NFC)، حذف التطويل `ـ`، حذف التشكيل، تطبيع المسافات،
-تطبيع علامات الترقيم، توحيد الأرقام العربية/اللاتينية، تطبيع صور الألف المختارة،
-وحذف علامات الخيارات عند الحاجة.
+`search_text` may apply: Unicode normalization (NFC), removing the tatweel `ـ`, removing diacritics, normalizing whitespace,
+normalizing punctuation, unifying Arabic/Latin digits, normalizing selected Alef forms,
+and stripping option labels where needed.
 
-**قاعدة عربية إلزامية (محفوظة من v1.0):** لا تُطبَّق تحويلات تغيّر المعنى.
-`ة → ه` **ليس** تطبيعًا عامًا مقبولًا.
+**A mandatory Arabic rule (preserved from v1.0):** transformations that change meaning are never applied.
+`ة → ه` is **not** an acceptable general normalization.
 
-### الشلال (Cascade) — بميزانية
+### The cascade — with a budget
 
-| الطبقة | الأداة | الكلفة | المخرَج |
-|--------|--------|--------|---------|
-| 0 | `question_text_hash` = SHA256(search_text) | صفر | تكرار حرفي |
-| 1 | `question_with_options_hash` = SHA256(search_text ⊹ الخيارات المطبَّعة المرتَّبة) | صفر | تكرار بفروق تنسيق |
-| 2 | Postgres `pg_trgm` + GIN index على `search_text` | منخفضة | مرشّحون لفظيون |
-| 3 | pgvector top-K=20 على embeddings | متوسطة | مرشّحون دلاليون |
-| 4 | **LLM في النطاق غير المؤكد فقط** | عالية — انظر §13.2 | حكم مُهيكل |
+| Layer | Tool | Cost | Output |
+|-------|------|------|--------|
+| 0 | `question_text_hash` = SHA256(search_text) | Zero | Literal duplicates |
+| 1 | `question_with_options_hash` = SHA256(search_text ⊹ the normalized ordered options) | Zero | Duplicates with formatting differences |
+| 2 | Postgres `pg_trgm` + a GIN index on `search_text` | Low | Lexical candidates |
+| 3 | pgvector top-K=20 over the embeddings | Medium | Semantic candidates |
+| 4 | **The LLM, in the uncertain band only** | High — see §13.2 | A structured verdict |
 
-**الـembeddings** (بالـprefix الإلزامي من §12.2):
+**The embeddings** (with the mandatory prefix from §12.2):
 ```text
-stem_embedding  ← السؤال وحده
-full_embedding  ← السؤال + الخيارات
+stem_embedding  ← the question alone
+full_embedding  ← the question + the options
 ```
-كلاهما بصيغة `task: sentence similarity | query: {…}`، وكل صف يحمل `embedding_config_version`.
+Both in the form `task: sentence similarity | query: {…}`, and every row carries an `embedding_config_version`.
 
-**للأسئلة المرتبطة بنص مشترك (§8):** يُضاف مقتطف من النص لا النص كله (حدّ 2K).
-سؤالان متطابقان على نصّين مختلفين **ليسا تكرارًا** — قاعدة إلزامية في الحكم.
+**For questions attached to a shared passage (§8):** an excerpt of the passage is added, not the whole passage (the 2K limit).
+Two identical questions on two different passages **are not duplicates** — a mandatory rule in the verdict.
 
-### مخرَج الحكم (Structured JSON)
+### The verdict output (structured JSON)
 
 ```json
 {
@@ -1184,32 +1198,32 @@ full_embedding  ← السؤال + الخيارات
 }
 ```
 
-أنواع العلاقة:
+The relation types:
 ```text
 exact_duplicate       formatting_duplicate   semantic_duplicate
 same_objective_variant related_not_duplicate  conflicting_duplicate
 not_related
 ```
 
-### مسار التصعيد العاجل — `conflicting_duplicate`
+### The urgent escalation path — `conflicting_duplicate`
 
-**هذا أهم مخرَج فوري في البرنامج كله، وv1.0 لم تعطه مسارًا.**
+**This is the most important immediate deliverable in the whole program, and v1.0 gave it no path.**
 
-سؤالان بنفس النص وجوابان صحيحان مختلفان = **خطأ محتوى يمسّ الطلاب الآن**. أحدهما خاطئ،
-ومن أجاب عليه صحيحًا حُسِب عليه خطأ (أو العكس).
+Two questions with the same text and two different correct answers = **a content error that affects students right now**. One of them
+is wrong, and whoever answered it correctly was marked wrong (or the reverse).
 
 ```text
-conflicting_duplicate مكتشَف
-  → طابور أولوية عالية للمدربين (لا ينتظر بقية المراجعة)
-  → قرار المدرب: أي الجوابين صحيح
-  → تقرير مباشر للفريق للتصحيح في Production admin
-  → تتبّع: كم طالبًا تأثّر (من source_answers)
+conflicting_duplicate detected
+  → a high-priority queue for the trainers (it does not wait for the rest of the review)
+  → the trainer's decision: which of the two answers is correct
+  → a direct report to the team for correction in the Production admin
+  → tracking: how many students were affected (from source_answers)
 ```
 
-يتعزّز هذا كثيرًا بـP3: **معامل تمييز سالب** يشير إلى السؤال نفسه من زاوية أخرى مستقلة.
-تقاطع الإشارتين = دليل قوي جدًا على خطأ في المفتاح.
+This is greatly reinforced by P3: **a negative discrimination coefficient** points at the same question from another, independent angle.
+The intersection of the two signals is very strong evidence of a wrong key.
 
-### العناقيد — لا حذف
+### The clusters — no deletion
 
 ```text
 duplicate_candidates       (pair, sim scores, band, llm verdict)
@@ -1218,145 +1232,145 @@ duplicate_cluster_members
 duplicate_reviews          (human decision, reviewer, timestamp, notes)
 ```
 
-**لماذا لا نحذف:** `question_result` يرتبط بـ`questions` بـFK، والأسئلة مرتبطة باختبارات
-تاريخية ونتائج وتحليلات. الحذف يُفسد التاريخ.
+**Why we do not delete:** `question_result` is linked to `questions` by an FK, and the questions are linked to historical
+tests, results, and analytics. Deleting corrupts the history.
 
-### شاشة المراجعة (Filament)
+### The review screen (Filament)
 
 ```text
-سؤال A            |  سؤال B
-الخيارات + الجواب  |  الخيارات + الجواب
-التشابه: 0.94   |  حكم AI: semantic_duplicate (91%)
-إحصاء A: p=0.71 |  إحصاء B: p=0.34    ← من P3 عند توفره
-[نفسه] [تنويعة صحيحة] [ليس تكرارًا] [متعارض!] [تخطّي]
+Question A          |  Question B
+Options + answer    |  Options + answer
+Similarity: 0.94    |  AI verdict: semantic_duplicate (91%)
+Stats A: p=0.71     |  Stats B: p=0.34    ← from P3 when available
+[Same] [Valid variant] [Not a duplicate] [Conflict!] [Skip]
 ```
 
-عرض إحصاء P3 داخل شاشة المراجعة يُسرّع القرار البشري كثيرًا: فرق p-value الكبير بين
-"سؤالين متطابقين" يعني أنهما ليسا متطابقين فعلًا في نظر الطلاب.
+Showing the P3 statistics inside the review screen speeds up the human decision considerably: a large p-value gap between
+"two identical questions" means they are not in fact identical in the students' eyes.
 
-### خارج النطاق
-حذف أي سؤال — تعديل نص Production — التصنيف والـtaxonomy (P5) — التوليد (P9).
+### Out of scope
+Deleting any question — modifying Production text — classification and taxonomy (P5) — generation (P9).
 
-### المخرجات
-مطبِّع عربي مع اختبارات وحدة — hashes — فهرس trgm — embeddings كاملة — مرشّحون —
-عناقيد — شاشة مراجعة — **مجموعة تقييم 400 زوج مصنَّفة بشريًا** — تقرير معايرة الحدود —
-طابور التكرار المتعارض.
+### Outputs
+An Arabic normalizer with unit tests — hashes — a trgm index — complete embeddings — candidates —
+clusters — a review screen — **a 400-pair human-labelled evaluation set** — a threshold calibration report —
+the conflicting-duplicate queue.
 
-### تقدير الجهد
-**10–15 يومًا** (بالإضافة إلى 17–35 ساعة مراجعة بشرية — §13.3)
+### Effort estimate
+**10–15 days** (plus 17–35 hours of human review — §13.3)
 
-### حدود القبول/الرفض
-- **البوابة:** على مجموعة الـ400 زوج، يجب تحقيق **precision ≥ 0.90 عند recall ≥ 0.70**
-  لفئة (exact + semantic duplicate) **قبل** التشغيل على البنك كامل.
-- إذا لم يتحقق ذلك بـEmbeddingGemma → يُقاس `bge-m3` و`multilingual-e5-large` (§12.4)
-  **قبل** لمس الـprompts. المشكلة في الترشيح غالبًا لا في الحكم.
-- إذا تجاوز عدد أزواج النطاق غير المؤكد 8,000 → تُشدّ الحدود، لأن الميزانية تتجاوز 10 ساعات LLM.
+### Accept/reject thresholds
+- **The gate:** on the 400-pair set, **precision ≥ 0.90 at recall ≥ 0.70** must be achieved
+  for the (exact + semantic duplicate) class **before** running over the whole bank.
+- If that is not achieved with EmbeddingGemma → measure `bge-m3` and `multilingual-e5-large` (§12.4)
+  **before** touching the prompts. The problem is usually in the shortlisting, not in the verdict.
+- If the number of uncertain-band pairs exceeds 8,000 → tighten the thresholds, because the budget then exceeds 10 LLM hours.
 
-### المخاطر
-| المخاطرة | التخفيف |
-|----------|---------|
-| جودة العربية في الـembedder غير كافية | القياس قبل الالتزام؛ بدائل محدَّدة مسبقًا |
-| انفجار عدد الأزواج | نطاقات صريحة + سقف معلن + `log` لما استُبعِد |
-| اختلاف المراجعين البشريين | قياس الاتفاق بينهم؛ الخلاف يُحال إلى مدرب |
-| تغيير الـprefix يُبطل الـvectors صامتًا | `embedding_config_version` إلزامي |
-| false positives من أسئلة النصوص المشتركة | قاعدة "نص مختلف ⇒ ليس تكرارًا" في الحكم والـblocking |
+### Risks
+| Risk | Mitigation |
+|------|------------|
+| The embedder's Arabic quality is not good enough | Measure before committing; predefined alternatives |
+| An explosion in the number of pairs | Explicit bands + a declared ceiling + a `log` of what was excluded |
+| Human reviewers disagreeing | Measure inter-rater agreement; disagreements go to a trainer |
+| A prefix change silently invalidating the vectors | `embedding_config_version` is mandatory |
+| False positives from passage-based questions | The "different passage ⇒ not a duplicate" rule in the verdict and in the blocking |
 
-### معايير الاعتماد
+### Acceptance criteria
 ```text
-[ ] التكرار الحرفي يُكتشف deterministically وبلا LLM.
-[ ] embeddings لكل سؤال صالح، بالـprefix الصحيح ومع config version.
-[ ] بحث الجيران الأقرب في pgvector يعمل.
-[ ] الـLLM لا يرى إلا أزواج النطاق غير المؤكد — ويُثبت ذلك بعدّاد.
-[ ] الإنسان يستطيع تجاوز حكم الـAI، والقرار محفوظ مع صاحبه.
-[ ] لا سؤال مصدر يُحذف.
-[ ] مقاييس التقييم (precision/recall/الاتفاق البشري) مسجَّلة ومنشورة.
-[ ] كل تكرار متعارض في طابور أولوية عالية مع عدد الطلاب المتأثرين.
+[ ] Literal duplicates are detected deterministically and without an LLM.
+[ ] Embeddings exist for every valid question, with the correct prefix and a config version.
+[ ] Nearest-neighbour search in pgvector works.
+[ ] The LLM sees only uncertain-band pairs — proven by a counter.
+[ ] A human can override the AI's verdict, and the decision is stored with its author.
+[ ] No source question is deleted.
+[ ] The evaluation metrics (precision/recall/human agreement) are recorded and published.
+[ ] Every conflicting duplicate is in a high-priority queue with the number of affected students.
 ```
 
 ---
 
 ## 18. P3 — Item Statistics from Existing Results
 
-### الهدف
-استخراج جودة الأسئلة من **سلوك الطلاب الحقيقي الموجود بالفعل** — بـSQL فقط، بلا AI،
-بلا أحداث جديدة، وبلا أي تعديل على Production.
+### Goal
+Extract question quality from **the real student behaviour that already exists** — with SQL alone, no AI,
+no new events, and no modification to Production whatsoever.
 
-### لماذا هذا المشروع مبكر
-v1.0 دفنت هذا في Project 8 خلف ستة مشاريع. لكنه:
+### Why this project comes early
+v1.0 buried it in Project 8 behind six projects. But it is:
 
-- **متاح اليوم بالكامل** — البيانات موجودة في `results` و`question_result`.
-- **لا يحتاج AI ولا embeddings ولا PDF ولا taxonomy.**
-- **يجد أخطاء المفاتيح فورًا** — معامل تمييز سالب = المتفوقون يخطئون فيه = المفتاح غالبًا خاطئ.
-- **أعلى قيمة لكل مجهود في البرنامج كله.**
+- **Fully available today** — the data is already in `results` and `question_result`.
+- **In need of no AI, no embeddings, no PDF, and no taxonomy.**
+- **An immediate finder of wrong keys** — a negative discrimination coefficient means the top performers get it wrong, which means the key is probably wrong.
+- **The highest value per unit of effort in the entire program.**
 
-### الاعتماديات
-P1 (المرحلة 2 — `source_results` و`source_answers`).
+### Dependencies
+P1 (Phase 2 — `source_results` and `source_answers`).
 
-### المقاييس والصيَغ
+### The metrics and the formulas
 
-**معامل الصعوبة (p-value):**
+**Difficulty (p-value):**
 ```text
-p = (عدد الإجابات على السؤال بـ points > 0) / (إجمالي الإجابات على السؤال)
+p = (number of answers on the question with points > 0) / (total answers on the question)
 ```
 
-**توزيع المشوّشات:**
+**Distractor distribution:**
 ```text
-لكل option_id: نسبة اختياره من إجمالي الإجابات على السؤال
+for each option_id: its share of the total answers on the question
 ```
 
-**معامل التمييز (point-biserial):**
+**Discrimination (point-biserial):**
 ```text
 r_pbis = ((M₁ − M₀) / SD_total) × √(p × q)
 
-M₁ = متوسط الدرجة الكلية لمن أجاب صحيحًا
-M₀ = متوسط الدرجة الكلية لمن أجاب خطأً
-p  = نسبة الإجابة الصحيحة،  q = 1 − p
-SD_total = الانحراف المعياري للدرجات الكلية
+M₁ = mean total score of those who answered correctly
+M₀ = mean total score of those who answered incorrectly
+p  = the correct-answer rate,  q = 1 − p
+SD_total = the standard deviation of the total scores
 ```
 
-**تصحيح مهم:** تُستخدَم الدرجة الكلية **مطروحًا منها درجة السؤال نفسه** (corrected total)،
-وإلا تضخّم المعامل ذاتيًا. هذه تفصيلة تُنسى كثيرًا وتُفسد الترتيب.
+**An important correction:** use the total score **minus the item's own score** (the corrected total),
+otherwise the coefficient inflates itself. This is a detail that is often forgotten and that corrupts the ranking.
 
-**حدود دنيا للعدد:**
+**Minimum counts:**
 ```text
-n < 10   → لا يُنشَر أي مقياس
-n < 30   → p-value فقط، بلا r_pbis
-n ≥ 30   → المقاييس كاملة
+n < 10   → no metric is published at all
+n < 30   → p-value only, no r_pbis
+n ≥ 30   → the full set of metrics
 ```
 
-### قواعد الوسم (Flags)
+### Flagging rules
 
-| القاعدة | الدلالة | الأولوية |
-|---------|---------|----------|
-| `r_pbis < 0` | **المتفوقون يخطئون فيه ⇒ المفتاح خاطئ غالبًا** | **عاجل** |
-| مشوّش يُختار أكثر من المفتاح | مفتاح مشكوك فيه | **عاجل** |
-| `p < 0.20` | صعب جدًا أو خاطئ | عالية |
-| `p > 0.95` | سهل جدًا / لا يميّز | متوسطة |
-| `0 ≤ r_pbis < 0.10` | لا يميّز بين المستويات | متوسطة |
-| مشوّش يُختار بأقل من 2% | مشوّش ميت — يُعاد كتابته | منخفضة |
-| تباعد كبير في p داخل عنقود تكرار | العنقود ليس تكرارًا فعليًا | متوسطة |
+| Rule | Meaning | Priority |
+|------|---------|----------|
+| `r_pbis < 0` | **The top performers get it wrong ⇒ the key is probably wrong** | **Urgent** |
+| A distractor chosen more often than the key | A suspect key | **Urgent** |
+| `p < 0.20` | Very hard, or wrong | High |
+| `p > 0.95` | Very easy / does not discriminate | Medium |
+| `0 ≤ r_pbis < 0.10` | Does not discriminate between levels | Medium |
+| A distractor chosen by under 2% | A dead distractor — rewrite it | Low |
+| A wide p-value spread inside a duplicate cluster | The cluster is not really a duplicate | Medium |
 
-### التقاطع مع P2 — أقوى إشارة في البرنامج
+### The intersection with P2 — the strongest signal in the program
 
 ```text
-سؤال له r_pbis سالب       (P3 — دليل سلوكي)
+A question with a negative r_pbis       (P3 — behavioural evidence)
         ∩
-عضو في عنقود conflicting_duplicate  (P2 — دليل نصي)
+A member of a conflicting_duplicate cluster  (P2 — textual evidence)
         ⇓
-احتمال عالٍ جدًا لخطأ في المفتاح — أولوية قصوى للمدرب
+A very high probability of a wrong key — top priority for the trainer
 ```
 
-إشارتان مستقلتان تمامًا تتفقان على نفس السؤال. هذا أقوى بكثير من أي منهما وحده.
+Two entirely independent signals agreeing on the same question. That is far stronger than either one alone.
 
-### دور الـAI
-**لا شيء في الحساب.** لاحقًا (بعد P4) يمكن للـLLM أن **يصوغ** التقرير للمدرب،
-مستندًا إلى الأرقام المحسوبة، دون أن يحسب أو يخترع رقمًا (ADR-009).
+### The AI's role
+**None in the computation.** Later (after P4) the LLM may **phrase** the report for the trainer,
+grounded in the computed numbers, without computing or inventing a number (ADR-009).
 
-### خارج النطاق
-زمن الإجابة، الترك، سؤال الانسحاب، تغيير الإجابة — **كلها غير متاحة** (§7.2).
-أي تعديل على Production. أي حكم على طالب.
+### Out of scope
+Answer time, abandonment, drop-off question, answer changes — **all unavailable** (§7.2).
+Any modification to Production. Any judgment about a student.
 
-### جداول الـLab
+### Lab tables
 ```text
 item_statistics       (question_id, n, p_value, r_pbis, computed_at, snapshot_id)
 option_statistics     (option_id, selection_rate, n)
@@ -1364,61 +1378,61 @@ quiz_statistics       (quiz_id, starts_proxy, mean, median, sd, n)
 item_flags            (question_id, flag_type, severity, evidence_json)
 ```
 
-### المخرجات
-حزمة SQL/Python للحسابات — لوحة Filament (ترتيب حسب الوسم والأولوية) — تقرير
-"أسئلة تحتاج مراجعة عاجلة" — تصدير للمدربين — تقرير تغطية يوضح **كم من البنك لديه بيانات كافية**.
+### Outputs
+An SQL/Python pack for the computations — a Filament console (sorted by flag and priority) — a
+"questions needing urgent review" report — an export for the trainers — a coverage report showing **how much of the bank has enough data**.
 
-### تقدير الجهد
-**4–6 أيام**
+### Effort estimate
+**4–6 days**
 
-### حدود القبول/الرفض
-- إذا كان أقل من 20% من البنك لديه `n ≥ 30` → المشروع يبقى ذا قيمة لكن نطاقه يُعلَن صريحًا،
-  ولا يُقدَّم كتقييم للبنك كله.
-- كل رقم يجب أن يكون قابلًا لإعادة الإنتاج من الصفوف الخام؛ اختبار يتحقق من ذلك على عيّنة.
+### Accept/reject thresholds
+- If fewer than 20% of the bank has `n ≥ 30` → the project remains valuable but its scope is stated explicitly,
+  and it is not presented as an assessment of the whole bank.
+- Every number must be reproducible from the raw rows; a test verifies that on a sample.
 
-### المخاطر
-| المخاطرة | التخفيف |
-|----------|---------|
-| عدد إجابات صغير يُنتج أرقامًا مضلّلة | حدود دنيا صريحة + إظهار `n` بجانب كل رقم دائمًا |
-| خلط المحاولات المتكررة | تمييز المحاولة الأولى بترتيب `created_at` وتقرير الاثنين |
-| اختبارات مختلفة لها صعوبة مختلفة | `r_pbis` داخل الاختبار الواحد فقط، لا عبر اختبارات |
-| قراءة الأرقام كحكم على مدرب | التقارير على مستوى السؤال، ولا تُرتَّب حسب المدرب |
+### Risks
+| Risk | Mitigation |
+|------|------------|
+| Small answer counts producing misleading numbers | Explicit minimum counts + always showing `n` next to every number |
+| Mixing repeated attempts | Identify the first attempt by ordering `created_at` and report both |
+| Different tests having different difficulty | `r_pbis` within a single test only, never across tests |
+| The numbers being read as a judgment on a trainer | Reports are at the question level, and are never sorted by trainer |
 
-### معايير الاعتماد
+### Acceptance criteria
 ```text
-[ ] كل مقياس قابل لإعادة الإنتاج من الصفوف الخام.
-[ ] الحدود الدنيا للعدد مطبَّقة، وn معروض مع كل رقم.
-[ ] الأسئلة ذات التمييز السالب مرتَّبة في تقرير عاجل.
-[ ] نسبة تغطية البنك بالبيانات معلَنة صريحًا.
-[ ] المدرب يستطيع الانتقال من الرقم إلى السؤال ومراجعته.
-[ ] لا يوجد أي مقياس محسوب بواسطة LLM.
+[ ] Every metric is reproducible from the raw rows.
+[ ] The minimum counts are applied, and n is shown with every number.
+[ ] Questions with negative discrimination are ranked in an urgent report.
+[ ] The share of the bank covered by data is declared explicitly.
+[ ] The trainer can navigate from a number to the question and review it.
+[ ] No metric is computed by an LLM.
 ```
 
 ---
 
 ## 19. P4 — Question Quality Audit
 
-### الهدف
-جودة الأسئلة **بمعزل عن الـtaxonomy** — لأن الجودة لا تحتاج تصنيفًا، والتغطية تحتاجه.
-(هذا فصل لما كان مدموجًا في Project 4 من v1.0.)
+### Goal
+Question quality **independent of the taxonomy** — because quality needs no classification, while coverage does.
+(This splits what was merged into Project 4 in v1.0.)
 
-### الاعتماديات
-P1 و P2. يستفيد كثيرًا من P3.
+### Dependencies
+P1 and P2. Benefits greatly from P3.
 
-### الطبقة الأولى — فحوص deterministic (بلا LLM)
+### Layer one — deterministic checks (no LLM)
 
 ```text
-السؤال غير فارغ                جواب صحيح موجود
-الجواب ينتمي للخيارات          لا خيارات مكرَّرة نصيًا
-عدد الخيارات متوافق            HTML سليم
-العلاقات صحيحة                 لا تسريب للجواب في نص السؤال (فحص نصي)
-طول السؤال والخيارات منطقي     لا خيارات "كل ما سبق" مع مفتاح متعدد
+The question is not empty          A correct answer exists
+The answer belongs to the options  No textually duplicated options
+The option count is consistent     Sound HTML
+The relations are valid            No answer leakage in the question text (a textual check)
+Question and option lengths are sane   No "all of the above" option with a multi-key
 ```
 
-### الطبقة الثانية — مراجعة AI
+### Layer two — AI review
 
-Gemma 4 يفحص ما لا يُفحص برمجيًا: الغموض، احتمال تعدد الصحيح، ضعف المشوّشات،
-تسريب الجواب، ركاكة العربية، نقص السياق، تعارض الشرح مع الجواب.
+Gemma 4 inspects what cannot be checked programmatically: ambiguity, the possibility of multiple correct answers, weak distractors,
+answer leakage, clumsy Arabic, missing context, an explanation that contradicts the answer.
 
 ```json
 {
@@ -1433,164 +1447,162 @@ Gemma 4 يفحص ما لا يُفحص برمجيًا: الغموض، احتما�
 }
 ```
 
-**الـAI لا يعتمد سؤالًا نهائيًا أبدًا** (ADR-005).
+**The AI never gives a question final approval** (ADR-005).
 
-### الطبقة الثالثة — الدليل السلوكي من P3
-وسوم P3 تُدمَج كمُدخَل مستقل. حين يتفق الـAI والإحصاء على نفس السؤال، ترتفع الأولوية.
-حين يختلفان، يُعرَض الخلاف للمراجع البشري — وهذا في ذاته إشارة مفيدة.
+### Layer three — the behavioural evidence from P3
+The P3 flags are merged in as an independent input. When the AI and the statistics agree on the same question, the priority rises.
+When they disagree, the disagreement is shown to the human reviewer — and that in itself is a useful signal.
 
-### الترتيب بالأولوية
-لا تُراجَع 25,000 سؤال. تُرتَّب:
+### Prioritized ordering
+25,000 questions are not reviewed. They are ranked:
 ```text
-1. متعارض في المفتاح (P2 ∩ P3)
-2. بلا جواب صحيح
-3. تمييز سالب
-4. AI يرى تعدد صحيح أو غموضًا + بيانات سلوكية سيّئة
-5. مشوّشات ميتة
-6. الباقي — عيّنة فقط
+1. A conflicting key (P2 ∩ P3)
+2. No correct answer
+3. Negative discrimination
+4. The AI sees multiple correct answers or ambiguity + poor behavioural data
+5. Dead distractors
+6. The rest — a sample only
 ```
 
-### خارج النطاق
-التصنيف والـtaxonomy والتغطية (P5) — تعديل نص Production — التوليد (P9).
+### Out of scope
+Classification, taxonomy, and coverage (P5) — modifying Production text — generation (P9).
 
-### جداول الـLab
+### Lab tables
 ```text
 quality_checks       (question_id, check_type, passed, details_json)
 ai_quality_reviews   (question_id, prompt_version, model, output_json, latency_ms)
 quality_decisions    (question_id, reviewer_id, decision, notes, created_at)
 ```
 
-### المخرجات
-محرّك الفحوص الحتمية — prompt مراجعة الجودة (مُصدَّر ومُرقَّم) — **مجموعة تقييم 300 سؤال
-بتصنيف بشري** — تقرير اتفاق AI/بشر — طابور مراجعة مرتَّب بالأولوية — لوحة الجودة.
+### Outputs
+The deterministic check engine — a quality review prompt (exported and versioned) — **a 300-question evaluation set
+with human labels** — an AI/human agreement report — a priority-ordered review queue — the quality console.
 
-### تقدير الجهد
-**6–9 أيام** (+ 5–10 ساعات مراجعة مدرب)
+### Effort estimate
+**6–9 days** (+ 5–10 hours of trainer review)
 
-### حدود القبول/الرفض
-- **البوابة:** اتفاق ≥ 0.80 مع التصنيف البشري على حقلَي `single_correct_answer` و
-  `ambiguity_detected` قبل عرض وسوم الـAI للمدربين كتوصيات.
-- إذا لم يتحقق → تُعرَض الفحوص الحتمية ووسوم P3 فقط، ويُخفى مخرَج الـAI حتى تحسّن الـprompt
-  أو النموذج. **عرض وسوم غير موثوقة على مدرب يُفقد الثقة في النظام كله**، وهي خسارة أغلى
-  من فائدة الوسم.
+### Accept/reject thresholds
+- **The gate:** agreement ≥ 0.80 with the human labels on the `single_correct_answer` and
+  `ambiguity_detected` fields before the AI flags are shown to trainers as recommendations.
+- If that is not achieved → only the deterministic checks and the P3 flags are shown, and the AI output is hidden until the prompt
+  or the model improves. **Showing unreliable flags to a trainer destroys trust in the whole system**, and that loss is more expensive
+  than the flag's benefit.
 
-### المخاطر
-| المخاطرة | التخفيف |
-|----------|---------|
-| ثقة زائدة في وسوم الـAI | البوابة أعلاه + وسم كل مخرَج AI بأنه "توصية" |
-| إغراق المدربين | ترتيب صارم بالأولوية + سقف يومي |
-| ركاكة عربية يحكم عليها نموذج | التقييم البشري هو الحكم (v1.0 §20 — محفوظ) |
+### Risks
+| Risk | Mitigation |
+|------|------------|
+| Over-trusting the AI flags | The gate above + labelling every AI output as a "recommendation" |
+| Flooding the trainers | Strict prioritization + a daily ceiling |
+| Arabic fluency being judged by a model | The human assessment is the judge (v1.0 §20 — preserved) |
 
-### معايير الاعتماد
+### Acceptance criteria
 ```text
-[ ] الفحوص الحتمية تعمل أولًا وتُنتج نتائج قبل أي نداء AI.
-[ ] مخرَج الـAI يلتزم بـJSON Schema ويُتحقَّق منه قبل القبول.
-[ ] تجاوزات البشر محفوظة مع صاحبها وسببها.
-[ ] بوابة الاتفاق 0.80 مُقاسة ومسجَّلة.
-[ ] الطابور مرتَّب بالأولوية لا بالـid.
-[ ] الصعوبة المتوقَّعة من الـAI موسومة "predicted" وتُميَّز عن p-value المقاس من P3.
+[ ] The deterministic checks run first and produce results before any AI call.
+[ ] The AI output conforms to a JSON Schema and is validated before acceptance.
+[ ] Human overrides are stored with their author and their reason.
+[ ] The 0.80 agreement gate is measured and recorded.
+[ ] The queue is ordered by priority, not by id.
+[ ] AI-predicted difficulty is labelled "predicted" and kept distinct from the p-value measured in P3.
 ```
 
 ---
 
 ## 20. P5 — Taxonomy & Coverage Map
 
-### الهدف
-تصنيف مُعتمَد للبنك، وخريطة فجوات (Gap Map) تُوجّه التوليد لاحقًا.
+### Goal
+An approved classification for the bank, and a gap map that will steer generation later.
 
-### لماذا مشروع مستقل
-**لا يوجد أي taxonomy في Production** — لا موضوع، لا مهارة، لا هدف تعليمي، لا مستوى معرفي،
-لا صعوبة. v1.0 جعلت ثلاثة مشاريع تعتمد على taxonomy لم تُسنِد إليها مالكًا ولا موعدًا.
+### Why this is an independent project
+**There is no taxonomy at all in Production** — no topic, no skill, no learning objective, no cognitive level,
+no difficulty. v1.0 made three projects depend on a taxonomy for which it assigned neither an owner nor a date.
 
-**القاعدة (محفوظة من v1.0 وصحيحة):** الفريق يعتمد الـtaxonomy أولًا، **ثم** يصنّف الـAI
-داخل قائمة مغلقة. لا يُسمح للنموذج باختراع فروع.
+**The rule (preserved from v1.0 and correct):** the team approves the taxonomy first, **then** the AI classifies
+within a closed list. The model is not allowed to invent branches.
 
-### الاعتماديات
-P1، P2 (للتصنيف على مستوى العنقود لا السؤال المفرد — أوفر كثيرًا).
-**واعتماد بشري خارجي** — وهذا هو المسار الحرج.
+### Dependencies
+P1, P2 (to classify at the cluster level rather than the individual question — far cheaper).
+**And an external human approval** — that is the critical path.
 
-### المرحلة 1 — التأليف البشري (لا برمجة)
+### Phase 1 — Human authoring (no programming)
 
-مخرَج بشري، يؤلّفه أهل التخصص، مُرقَّم الإصدار:
+A human deliverable, authored by subject-matter experts, and version-numbered:
 
 ```text
 Specialization → Topic → Subtopic → Skill → Learning Objective
-Cognitive Level   (مثال: تذكّر / فهم / تطبيق / تحليل)
-Difficulty Bands  (سهل / متوسط / صعب — معرَّفة بحدود p-value من P3، لا بالحدس)
+Cognitive Level   (e.g. recall / understanding / application / analysis)
+Difficulty Bands  (easy / medium / hard — defined by p-value boundaries from P3, not by intuition)
 ```
 
-**نقطة مهمة:** بعد P3 صارت لدينا صعوبة **مقاسة** فعلًا. لذلك تُعرَّف نطاقات الصعوبة
-بحدود p-value حقيقية بدل تقدير بشري — وهذه ميزة مباشرة لتقديم P3.
+**An important point:** after P3 we have **measured** difficulty for real. So the difficulty bands are defined
+by real p-value boundaries instead of a human guess — a direct benefit of pulling P3 forward.
 
-`categories` في Production تُستخدم كجذر التخصصات (مع الحذر من `parent_id` — §9).
+Production's `categories` is used as the root of the specializations (with care around `parent_id` — §9).
 
-### المرحلة 1ب — مواصفة Qiyas / STEP / IELTS
+### Phase 1b — The Qiyas / STEP / IELTS specification
 
-v1.0 تستخدم "Qiyas-style" في كل مكان بلا تعريف. المطلوب مواصفة مكتوبة لكل عائلة اختبار:
+v1.0 uses "Qiyas-style" everywhere without defining it. What is needed is a written specification for each test family:
 
 ```text
-عدد الأسئلة        الأقسام وتوزيعها
-التوقيت            وزن كل موضوع
-مزيج الصعوبة       صيغ الأسئلة المستخدمة
-طريقة التقدير      هل توجد نصوص مشتركة؟
+Question count        The sections and their distribution
+Timing                The weight of each topic
+Difficulty mix        The question formats used
+Scoring method        Are there shared passages?
 ```
 
-يؤلّفها من يعرف الاختبار الحقيقي، وتُخزَّن مُرقَّمة الإصدار.
-**بدون هذه المواصفة، "Qiyas-style" كلمة تسويقية لا مواصفة هندسية.**
+It is authored by someone who knows the real test, and stored with a version number.
+**Without this specification, "Qiyas-style" is a marketing phrase, not an engineering spec.**
 
-### المرحلة 2 — التصنيف بالـAI
-تصنيف داخل القائمة المغلقة، **على مستوى العنقود** (canonical) لا كل سؤال — يوفّر
-نسبة كبيرة من نداءات الـLLM.
+### Phase 2 — AI classification
+Classification within the closed list, **at the cluster level** (the canonical) rather than every question — which saves
+a large share of the LLM calls.
 
-### المرحلة 3 — خريطة التغطية
+### Phase 3 — The coverage map
 
 ```text
-الموضوع: استراتيجيات التدريس
+Topic: Teaching Strategies
 
-أسئلة معتمدة: 850
+Approved questions: 850
 
-تذكّر:  430        تكرار حرفي:     110
-فهم:    260        تكرار دلالي:      70
-تطبيق:  140        تحتاج مراجعة:     95
-تحليل:   20        لها مصدر معتمد:  320
-                   بلا مصدر:        530
+Recall:      430        Literal duplicates:    110
+Understand:  260        Semantic duplicates:    70
+Apply:       140        Needs review:           95
+Analyse:      20        Has an approved source: 320
+                        No source:             530
 
-صعوبة مقاسة (من P3):  سهل 40% / متوسط 45% / صعب 15%
-الفجوة: نقص في التطبيق والتحليل، ونقص في الصعب
+Measured difficulty (from P3):  easy 40% / medium 45% / hard 15%
+The gap: a shortage of application and analysis, and a shortage of hard items
 ```
 
-### المخرجات
-`taxonomy` مُرقَّمة الإصدار — مواصفات الاختبارات — تصنيف البنك — خريطة الفجوات —
-لوحة التغطية — تعريف نطاقات الصعوبة بحدود p-value.
+### Outputs
+A version-numbered `taxonomy` — the test specifications — the bank classified — the gap map —
+the coverage console — the difficulty bands defined by p-value boundaries.
 
-### تقدير الجهد
-**4–6 أيام برمجة** + **2–4 أسابيع زمن منقضٍ** لانتظار التأليف البشري (المسار الحرج).
+### Effort estimate
+**4–6 days of programming** + **2–4 weeks of elapsed time** waiting for the human authoring (the critical path).
 
-**توصية جدولة:** يبدأ طلب تأليف الـtaxonomy **في وقت P2**، لا عند P5. وإلا سيتوقف
-البرنامج انتظارًا لقرار بشري كان يمكن أن ينضج بالتوازي. هذه أهم ملاحظة جدولة في المستند.
+**A scheduling recommendation:** the request to author the taxonomy starts **during P2**, not at P5. Otherwise the
+program will stall waiting on a human decision that could have matured in parallel. This is the most important scheduling note in the document.
 
-### حدود القبول/الرفض
-- بلا taxonomy معتمدة بشريًا → **P5 لا يبدأ**، ولا يُسمح للـAI باختراع تصنيف.
-  P4 وP3 وP6 تكمل بدونها.
-- إذا تعذّر الحصول على مواصفة اختبار → تُبنى مواصفة أولية من الاختبارات الفعلية الموجودة
-  في Production (استعلام 8 في §6.1)، وتُوسم "مستنبطة، غير معتمدة".
+### Accept/reject thresholds
+- With no human-approved taxonomy → **P5 does not start**, and the AI is not allowed to invent a classification.
+  P4, P3, and P6 continue without it.
+- If a test specification cannot be obtained → build a preliminary one from the actual tests present
+  in Production (query 8 in §6.1), and label it "inferred, not approved."
 
-### المخاطر
-| المخاطرة | التخفيف |
-|----------|---------|
-| الـtaxonomy لا تُؤلَّف أبدًا | تبدأ مبكرًا؛ يُقبل إصدار v0.1 ناقص بدل انتظار الكمال |
-| الـAI يخرج عن القائمة | تحقّق برمجي: أي تصنيف خارج القائمة يُرفض آليًا |
-| تصنيف واحد يُفرض على سؤال متعدد الجوانب | السماح بأكثر من موضوع، بواحد أساسي |
+### Risks
+| Risk | Mitigation |
+|------|------------|
+| The taxonomy never gets authored | Start early; accept an incomplete v0.1 rather than waiting for perfection |
+| The AI going outside the list | A programmatic check: any classification outside the list is rejected automatically |
+| One classification forced onto a multi-faceted question | Allow more than one topic, with one primary |
 
-### معايير الاعتماد
+### Acceptance criteria
 ```text
-[ ] الـtaxonomy معتمدة بشريًا ومُرقَّمة الإصدار قبل أي تصنيف AI.
-[ ] كل تصنيف AI داخل القائمة المغلقة — يُثبته تحقّق برمجي.
-[ ] نطاقات الصعوبة معرَّفة بـp-value مقاس من P3، لا بالحدس.
-[ ] الفجوات قابلة للتحديد ولتصديرها كمُدخَل لـP9.
-[ ] مواصفة اختبار واحدة على الأقل مكتوبة ومعتمدة.
+[ ] The taxonomy is human-approved and version-numbered before any AI classification.
+[ ] Every AI classification is inside the closed list — proven by a programmatic check.
+[ ] The difficulty bands are defined by a p-value measured in P3, not by intuition.
+[ ] The gaps are identifiable and exportable as an input to P9.
+[ ] At least one test specification is written and approved.
 ```
 
 <!-- SENTINEL:PART4B -->
-
-

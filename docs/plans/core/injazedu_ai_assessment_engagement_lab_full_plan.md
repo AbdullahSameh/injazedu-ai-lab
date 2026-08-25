@@ -1,6 +1,18 @@
 # InjazEdu AI Assessment & Engagement Lab
 ## Full Implementation Plan — Local Development First
 
+> **HISTORICAL — superseded by v2.0.** The governing plan is
+> `docs/plans/core/final_injazedu_ai_assessment_engagement_lab_full_plan.md`. This file is retained
+> as background and as the record of what changed and why (v2.0 §2 is the diff). **Where the two
+> disagree, v2.0 governs.** Nothing in this file is a requirement.
+>
+> Known-obsolete here: the `explanation` / `correct_answer` / `exam_ids` fields, which do not exist
+> in the Production schema · the Project 6 assessment builder, impossible under Production
+> read-only · `[ ] PostgreSQL backup configured` (§ near line 3061) — backups are cancelled
+> program-wide (v2.0 §14.6) · the snapshot/import ordering in Phases A–B — the local copy is fixed
+> at 2026-08-07 and never refreshed (v2.0 §14.1).
+
+
 **Version:** 1.0  
 **Date:** 2026-08-07  
 **Primary development environment:** macOS  
@@ -10,10 +22,10 @@
 
 # 1. Executive Summary
 
-الهدف من هذا البرنامج هو بناء مجموعة مشاريع مترابطة حول `injazedu.co` تحقق هدفين في الوقت نفسه:
+The goal of this program is to build a set of interconnected projects around `injazedu.co` that achieve two things at the same time:
 
-1. تطوير Features حقيقية تخدم المنصة وتزيد جودة الاختبارات والتفاعل.
-2. استخدام المنصة كمختبر عملي لتعلّم وتطبيق:
+1. Develop real features that serve the platform and raise the quality of its assessments and engagement.
+2. Use the platform as a practical laboratory for learning and applying:
    - Local LLMs
    - Ollama
    - RAG
@@ -27,9 +39,9 @@
    - Analytics
    - Human-in-the-loop AI
 
-المنصة تحتوي بالفعل على نحو **25,000 سؤال** موزعة على الاختبارات العامة والخاصة بالدورات، مع وجود أسئلة مكررة. لذلك لا يجب أن تكون البداية بإنشاء أسئلة جديدة، بل بتحويل بنك الأسئلة الموجود إلى **Question Intelligence Layer** نظيفة وقابلة للتحليل والتوسع.
+The platform already holds roughly **25,000 questions** spread across public tests and course-specific tests, and duplicates exist among them. The starting point must therefore not be creating new questions, but turning the existing question bank into a clean, analyzable, extensible **Question Intelligence Layer**.
 
-الترتيب العام:
+The overall order:
 
 ```text
 0. AI Lab Foundation
@@ -53,7 +65,7 @@
 9. Student Engagement & Personalized Practice
 ```
 
-القاعدة الأساسية للنظام:
+The foundational rule of the system:
 
 ```text
 Production serves students.
@@ -63,25 +75,25 @@ Humans approve.
 
 ---
 
-# 2. هل Local Development يغيّر الخطة؟
+# 2. Does Local Development Change the Plan?
 
-نعم، ولكن التغيير في **Infrastructure وIntegration strategy** أكثر من التغيير في Architecture.
+Yes, but the change is in **infrastructure and integration strategy** more than in architecture.
 
-في مرحلة Local Development:
+During the local development stage:
 
-- لا نحتاج Hostinger VPS.
-- لا نحتاج فتح أي AI service على الإنترنت.
-- لا نحتاج اتصالًا مباشرًا من جهاز التطوير بقاعدة MySQL في Production.
-- نبدأ باستخدام Snapshot / Export آمن من بيانات الأسئلة.
-- نستخدم Ollama محليًا على الـMac.
-- نستخدم Docker Compose لباقي خدمات الـInfrastructure.
-- نستخدم Local filesystem لملفات PDF في البداية.
-- Telegram يمكن تجربته لاحقًا باستخدام Bot تجريبي وقناة خاصة.
-- Signed Internal API مع Production يتم بناؤه واختباره بعد إثبات الـLocal workflows.
+- We do not need the Hostinger VPS.
+- We do not need to expose any AI service to the internet.
+- We do not need a direct connection from the development machine to the Production MySQL database.
+- We start from a safe snapshot / export of the question data.
+- We use Ollama locally on the Mac.
+- We use Docker Compose for the remaining infrastructure services.
+- We use the local filesystem for PDF files at first.
+- Telegram can be tried later using a test bot and a private channel.
+- The Signed Internal API with Production is built and tested after the local workflows have proven themselves.
 
-## التغيير الأهم
+## The Most Important Change
 
-أثناء التطوير المحلي:
+During local development:
 
 ```text
 Production MySQL
@@ -95,7 +107,7 @@ JSON / CSV / SQL-derived JSON
 Local AI Lab
 ```
 
-لاحقًا:
+Later:
 
 ```text
 DigitalOcean Production
@@ -105,7 +117,7 @@ DigitalOcean Production
 Hostinger AI Lab
 ```
 
-**لا تجعل الـLocal AI Lab يتصل مباشرة بقاعدة Production MySQL بصلاحيات مفتوحة.**
+**Do not let the local AI Lab connect directly to the Production MySQL database with open privileges.**
 
 ---
 
@@ -113,15 +125,15 @@ Hostinger AI Lab
 
 ## 3.1 Local Development Architecture
 
-الـArchitecture الموصى بها على الـMac هي Hybrid:
+The recommended architecture on the Mac is hybrid:
 
-- Ollama يعمل Native على macOS.
-- PostgreSQL + pgvector داخل Docker.
-- Redis داخل Docker.
-- n8n داخل Docker.
-- Laravel + Filament يمكن تشغيلهما Native أو داخل Docker.
-- FastAPI يمكن تشغيله Native داخل Python virtual environment أو داخل Docker.
-- Files تحفظ محليًا في Private Storage أثناء التطوير.
+- Ollama runs native on macOS.
+- PostgreSQL + pgvector inside Docker.
+- Redis inside Docker.
+- n8n inside Docker.
+- Laravel + Filament can run native or inside Docker.
+- FastAPI can run native inside a Python virtual environment, or inside Docker.
+- Files are stored locally in private storage during development.
 
 ```text
 Mac — Local Development
@@ -206,9 +218,9 @@ Hostinger — AI Lab
 
 ## 4.1 InjazEdu Production
 
-Production يظل الـSource of Truth للبيانات الأساسية التي تؤثر على الطلاب.
+Production remains the source of truth for the core data that affects students.
 
-مسؤول عن:
+Responsible for:
 
 - Users
 - Students
@@ -228,13 +240,13 @@ Production يظل الـSource of Truth للبيانات الأساسية الت
 - Student-facing pages
 - Telegram landing pages
 
-لا يعتمد الطالب على Ollama لكي يبدأ أو يكمل اختبارًا.
+A student does not depend on Ollama in order to start or finish a test.
 
 ---
 
 ## 4.2 AI Lab
 
-مسؤول عن:
+Responsible for:
 
 - Question Mirror
 - Question Inventory
@@ -257,15 +269,15 @@ Production يظل الـSource of Truth للبيانات الأساسية الت
 - Experiment logs
 - Analytics reports
 
-AI Lab لا يصبح الـSource of Truth للاشتراكات أو صلاحيات الطلاب.
+The AI Lab does not become the source of truth for subscriptions or student permissions.
 
 ---
 
 ## 4.3 n8n
 
-n8n هو Orchestrator، وليس Data Processing Engine.
+n8n is an orchestrator, not a data processing engine.
 
-يستخدم في:
+It is used for:
 
 - Scheduling
 - Triggering API jobs
@@ -277,16 +289,16 @@ n8n هو Orchestrator، وليس Data Processing Engine.
 - Failure alerts
 - Cross-system automation
 
-ولا يستخدم في:
+And it is not used for:
 
-- معالجة 25,000 سؤال Node-by-Node.
-- إنشاء Embeddings لجميع البيانات داخل Workflow طويل.
-- PDF parsing الثقيل.
-- OCR الثقيل.
-- Statistical computation الثقيل.
-- حفظ Business Logic الأساسية.
+- Processing 25,000 questions node-by-node.
+- Creating embeddings for all the data inside one long workflow.
+- Heavy PDF parsing.
+- Heavy OCR.
+- Heavy statistical computation.
+- Holding core business logic.
 
-القاعدة:
+The rule:
 
 ```text
 n8n triggers and coordinates.
@@ -302,7 +314,7 @@ Laravel manages business rules and human review.
 
 ### Laravel + Filament
 
-الاستخدام:
+Used for:
 
 - Admin / Lab UI
 - Authentication
@@ -320,7 +332,7 @@ Laravel manages business rules and human review.
 
 ### FastAPI
 
-الاستخدام:
+Used for:
 
 - AI endpoints
 - Arabic processing
@@ -333,7 +345,7 @@ Laravel manages business rules and human review.
 - Question generation
 - Model abstraction
 
-لا تضع Prompt logic الرئيسية داخل n8n.
+Do not put the main prompt logic inside n8n.
 
 ---
 
@@ -341,7 +353,7 @@ Laravel manages business rules and human review.
 
 ### PostgreSQL + pgvector
 
-يستخدم لـ:
+Used for:
 
 - Question mirror
 - Embeddings
@@ -359,7 +371,7 @@ Laravel manages business rules and human review.
 
 ### Redis
 
-يستخدم لـ:
+Used for:
 
 - Queues
 - Job state
@@ -374,16 +386,16 @@ Laravel manages business rules and human review.
 
 ### Ollama
 
-يعمل Native على الـMac أثناء التطوير.
+Runs native on the Mac during development.
 
-السبب:
+The reasons:
 
-- على Apple Silicon يستفيد Ollama من Metal GPU acceleration.
-- تشغيله Native يفصل الـAI runtime عن Docker networking.
-- يبسط اختبار النماذج.
-- يمنع إضافة طبقة Virtualization غير ضرورية للنموذج.
+- On Apple Silicon, Ollama benefits from Metal GPU acceleration.
+- Running it native separates the AI runtime from Docker networking.
+- It simplifies model testing.
+- It avoids adding an unnecessary virtualization layer around the model.
 
-إذا كان الجهاز Intel Mac، فـOllama يعمل CPU-only حسب وثائق Ollama الحالية.
+If the machine is an Intel Mac, Ollama runs CPU-only according to the current Ollama documentation.
 
 ---
 
@@ -397,7 +409,7 @@ Laravel manages business rules and human review.
 ollama pull embeddinggemma:300m-qat-q4_0
 ```
 
-الاستخدام:
+Used for:
 
 - Question semantic similarity
 - Duplicate candidate search
@@ -406,7 +418,7 @@ ollama pull embeddinggemma:300m-qat-q4_0
 - RAG retrieval
 - Topic clustering experiments
 
-لا تستخدم Gemma 4 نفسه لإنشاء Embeddings.
+Do not use Gemma 4 itself to create embeddings.
 
 ---
 
@@ -418,7 +430,7 @@ ollama pull embeddinggemma:300m-qat-q4_0
 ollama pull gemma4:e2b-it-qat
 ```
 
-الاستخدام:
+Used for:
 
 - Duplicate adjudication
 - Question classification
@@ -432,44 +444,44 @@ ollama pull gemma4:e2b-it-qat
 
 ### Optional Benchmark Models
 
-إذا كان الـMac يحتوي على RAM / Unified Memory كافية:
+If the Mac has enough RAM / unified memory:
 
 ```text
 gemma4:e4b-it-qat
 gemma4:12b-it-qat
 ```
 
-لا تختَر النموذج بناءً على حجم ملفه فقط؛ يجب قياس:
+Do not choose a model based on its file size alone; you must measure:
 
 - Real memory usage
 - Tokens/sec
 - Prompt latency
 - Arabic quality
 - JSON compliance
-- Accuracy on InjazEdu Eval Dataset
+- Accuracy on the InjazEdu Eval Dataset
 
 ## Practical Local Guidance
 
 ### 8 GB memory
 
-ابدأ فقط بـ:
+Start only with:
 
 ```text
 EmbeddingGemma
 Gemma 4 E2B QAT
 ```
 
-وأغلق الخدمات غير الضرورية أثناء الاختبارات الثقيلة.
+And shut down unnecessary services during heavy tests.
 
 ### 16 GB memory
 
-مناسب جدًا لـE2B.
+Very suitable for E2B.
 
-يمكن تجربة E4B ومقارنة الأداء.
+E4B can be tried and its performance compared.
 
-### 24–32 GB أو أكثر
+### 24–32 GB or more
 
-يمكن Benchmark:
+You can benchmark:
 
 ```text
 E2B
@@ -477,21 +489,21 @@ E4B
 12B
 ```
 
-لكن اختيار Production model يتم حسب الـEvaluation وليس الحجم فقط.
+But the production model is chosen by evaluation, not by size alone.
 
 ---
 
 # 7. Ollama Local Configuration Principles
 
-ابدأ بسياق صغير بدل استخدام Max Context الخاص بالنموذج:
+Start with a small context instead of using the model's max context:
 
 ```text
 Development baseline context: 4096
 ```
 
-ارفعه عند وجود سبب واضح.
+Raise it when there is a clear reason.
 
-اقتراحات:
+Suggestions:
 
 ```text
 Classification:
@@ -504,7 +516,7 @@ Question Generation:
 temperature = 0.4 – 0.7
 ```
 
-كل AI task يجب أن يكون له:
+Every AI task must have:
 
 ```text
 model_name
@@ -523,9 +535,9 @@ created_at
 
 # 8. Suggested Repository Structure
 
-يمكن تنفيذ Laravel وFastAPI في Repositories مستقلة أو Monorepo.
+Laravel and FastAPI can live in separate repositories or in a monorepo.
 
-للتعلّم وسهولة التطوير، Monorepo مناسب في البداية:
+For learning and ease of development, a monorepo is suitable at first:
 
 ```text
 injazedu-ai-lab/
@@ -581,7 +593,7 @@ injazedu-ai-lab/
 
 # 9. Example Local Docker Compose Responsibilities
 
-يفضل أن يحتوي Docker Compose في البداية على:
+At first, Docker Compose should preferably contain:
 
 ```text
 postgres
@@ -589,7 +601,7 @@ redis
 n8n
 ```
 
-ويمكن لاحقًا إضافة:
+And later it can add:
 
 ```text
 laravel
@@ -598,9 +610,9 @@ queue-worker
 scheduler
 ```
 
-Ollama يفضل أن يبقى Native على Mac أثناء Local Development.
+Ollama should preferably stay native on the Mac during local development.
 
-FastAPI داخل Docker يستطيع الوصول إلى Ollama الموجود على الـHost باستخدام إعداد Host networking المناسب لـDocker Desktop، أو يمكن تشغيل FastAPI Native أثناء أول مراحل التطوير لتبسيط الاتصال بـ:
+FastAPI inside Docker can reach the Ollama running on the host using the host-networking arrangement appropriate for Docker Desktop — or FastAPI can be run native during the first development stages to simplify the connection to:
 
 ```text
 http://localhost:11434
@@ -612,11 +624,11 @@ http://localhost:11434
 
 ## Goal
 
-تجهيز بيئة Local موحدة تسمح ببناء كل المشاريع التالية دون لمس Production.
+Prepare a unified local environment that makes it possible to build every following project without touching Production.
 
 ## Scope
 
-إنشاء:
+Create:
 
 - Laravel + Filament Lab
 - FastAPI service
@@ -631,7 +643,7 @@ http://localhost:11434
 
 ## Initial Health Checks
 
-يجب أن تستطيع تنفيذ:
+You must be able to execute:
 
 ```text
 Laravel → PostgreSQL
@@ -646,13 +658,13 @@ n8n → FastAPI API
 
 ## Required Development Rules
 
-- جميع Secrets داخل `.env`.
-- لا ترفع `.env` إلى Git.
-- لا تستخدم Production credentials محليًا إلا عند مرحلة Integration محددة.
-- Ollama port لا يحتاج exposure إلى الإنترنت.
-- PostgreSQL port لا يفتح Public.
-- Redis لا يفتح Public.
-- n8n local instance لا يستخدم Production Telegram credentials في البداية.
+- All secrets inside `.env`.
+- Do not push `.env` to Git.
+- Do not use Production credentials locally except at a specific integration stage.
+- The Ollama port does not need exposure to the internet.
+- The PostgreSQL port is not opened publicly.
+- Redis is not opened publicly.
+- The local n8n instance does not use Production Telegram credentials at first.
 
 ## Deliverables
 
@@ -684,17 +696,17 @@ n8n → FastAPI API
 
 ## Goal
 
-إنشاء نسخة محلية آمنة من بنك الأسئلة الحالي وتحليل حالته قبل استخدام AI.
+Create a safe local copy of the current question bank and analyse its state before using AI.
 
 ## Local Development Data Strategy
 
-في أول مرحلة لا تستخدم Live API.
+In the first stage, do not use a live API.
 
-اعمل Controlled Export من Production.
+Do a controlled export from Production.
 
-يفضل تحويل البيانات إلى JSON Schema ثابت.
+It is preferable to convert the data into a fixed JSON schema.
 
-مثال:
+Example:
 
 ```json
 {
@@ -718,7 +730,7 @@ n8n → FastAPI API
 
 ## Never assume the existing schema is clean
 
-أول Import يجب أن يسجل المشاكل بدل إخفائها:
+The first import must record the problems instead of hiding them:
 
 - Missing options
 - Duplicate option keys
@@ -743,7 +755,7 @@ import_runs
 import_errors
 ```
 
-كل record يحتوي:
+Every record contains:
 
 ```text
 source_system = injazedu_production
@@ -755,7 +767,7 @@ payload_hash
 
 ## Inventory Dashboard
 
-تعرض:
+Shows:
 
 - Total questions
 - Questions by course
@@ -770,11 +782,11 @@ payload_hash
 
 ## n8n Role
 
-في Local MVP:
+In the local MVP:
 
-لا حاجة له في أول Import.
+It is not needed for the first import.
 
-لاحقًا يمكن:
+Later it can do:
 
 ```text
 Manual Trigger
@@ -785,7 +797,7 @@ Manual Trigger
 
 ## Future Production Sync
 
-بعد نجاح Local Import:
+After the local import succeeds:
 
 ```text
 Production Signed API
@@ -813,11 +825,11 @@ Production Signed API
 
 ## Goal
 
-اكتشاف التكرار الحقيقي داخل بنك الأسئلة دون حذف البيانات الأصلية.
+Discover the real duplication inside the question bank without deleting the original data.
 
 ## Core Principle
 
-احتفظ دائمًا بالنص الأصلي.
+Always keep the original text.
 
 ```text
 raw_text
@@ -827,13 +839,13 @@ search_text
 
 ## raw_text
 
-النص كما هو في Production.
+The text exactly as it is in Production.
 
-لا يتم تعديله.
+It is never modified.
 
 ## clean_text
 
-تنظيف تقني فقط:
+Technical cleaning only:
 
 - Remove unnecessary HTML
 - Normalize whitespace
@@ -842,9 +854,9 @@ search_text
 
 ## search_text
 
-نسخة خاصة بالمقارنة والبحث.
+A representation dedicated to comparison and search.
 
-يمكن تطبيق:
+It may apply:
 
 - Unicode normalization
 - Remove Tatweel `ـ`
@@ -857,37 +869,37 @@ search_text
 
 ## Important Arabic Rule
 
-لا تقم تلقائيًا بتحويلات لغوية قد تغيّر المعنى.
+Do not automatically apply linguistic transformations that may change meaning.
 
-مثال:
+Example:
 
 ```text
 ة → ه
 ```
 
-لا تستخدم هذا كNormalization عام.
+Do not use this as a general normalization.
 
 ---
 
 ## Stage A — Exact Duplicate Detection
 
-بدون LLM.
+Without an LLM.
 
-أنشئ:
+Create:
 
 ```text
 question_text_hash
 question_with_options_hash
 ```
 
-مثال:
+Example:
 
 ```text
 SHA256(search_question_text)
 SHA256(search_question_text + normalized_options)
 ```
 
-يكتشف:
+This detects:
 
 - Exact copies
 - Formatting differences
@@ -898,22 +910,22 @@ SHA256(search_question_text + normalized_options)
 
 ## Stage B — Lexical Similarity
 
-استخدم:
+Use:
 
 - Character n-grams
 - Token overlap
 - Jaccard similarity
 - Edit distance
 
-هذه مرحلة Candidate Generation إضافية.
+This is an additional candidate-generation stage.
 
 ---
 
 ## Stage C — Semantic Similarity
 
-استخدم EmbeddingGemma.
+Use EmbeddingGemma.
 
-لكل سؤال:
+For every question:
 
 ```text
 stem_embedding
@@ -922,7 +934,7 @@ full_question_embedding
 
 ### stem_embedding
 
-يتضمن:
+Covers:
 
 ```text
 Question stem only
@@ -930,7 +942,7 @@ Question stem only
 
 ### full_question_embedding
 
-يتضمن:
+Covers:
 
 ```text
 Question
@@ -938,9 +950,9 @@ Question
 Options
 ```
 
-احفظ الـvectors في pgvector.
+Store the vectors in pgvector.
 
-ثم:
+Then:
 
 ```text
 Question
@@ -949,15 +961,15 @@ Question
 → Candidate pairs
 ```
 
-لا تقارن كل سؤال بكل الـ25,000 سؤال باستخدام LLM.
+Do not compare every question against all 25,000 questions using an LLM.
 
 ---
 
 ## Stage D — Gemma 4 Adjudication
 
-Gemma 4 لا يبحث في البنك كله.
+Gemma 4 does not search the whole bank.
 
-يستقبل فقط Candidate Pair.
+It receives only a candidate pair.
 
 Input:
 
@@ -972,7 +984,7 @@ Optional topic metadata
 Similarity scores
 ```
 
-Output يجب أن يكون Structured JSON:
+The output must be structured JSON:
 
 ```json
 {
@@ -1002,9 +1014,9 @@ not_related
 
 ## Duplicate Clusters
 
-لا تحذف الأسئلة.
+Do not delete questions.
 
-أنشئ:
+Create:
 
 ```text
 duplicate_clusters
@@ -1013,7 +1025,7 @@ duplicate_candidates
 duplicate_reviews
 ```
 
-مثال:
+Example:
 
 ```text
 Cluster 52
@@ -1025,7 +1037,7 @@ Cluster 52
 
 ## Why not delete?
 
-لأن السؤال قد يكون مرتبطًا بـ:
+Because a question may be linked to:
 
 - Historical exams
 - Attempts
@@ -1053,9 +1065,9 @@ AI confidence     91%
 
 ## Evaluation Dataset
 
-قبل اعتماد Threshold:
+Before adopting a threshold:
 
-أنشئ Dataset بشرية مثل:
+Create a human dataset such as:
 
 ```text
 200 exact/near duplicate pairs
@@ -1064,7 +1076,7 @@ AI confidence     91%
 200 unrelated pairs
 ```
 
-ثم قِس:
+Then measure:
 
 ```text
 Precision
@@ -1092,17 +1104,17 @@ Human agreement
 
 ## Goal
 
-تحويل كتب الدورات وملفات PDF إلى Knowledge Source موثوقة يمكن الرجوع إليها عند إنشاء ومراجعة الأسئلة.
+Turn course books and PDF files into a trustworthy knowledge source that can be referenced when creating and reviewing questions.
 
 ## Supported Documents
 
-البداية:
+At the start:
 
 ```text
 PDF
 ```
 
-لاحقًا:
+Later:
 
 ```text
 Slides
@@ -1138,7 +1150,7 @@ document_review_actions
 
 ## Store Original File
 
-لكل ملف:
+For every file:
 
 ```text
 document_id
@@ -1175,9 +1187,9 @@ PDF Upload
 
 ## Born-digital PDF
 
-استخدم PyMuPDF / PyMuPDF4LLM.
+Use PyMuPDF / PyMuPDF4LLM.
 
-يفضل الاحتفاظ بـ:
+It is preferable to keep:
 
 ```text
 page number
@@ -1188,34 +1200,34 @@ images metadata
 bounding boxes when useful
 ```
 
-الهدف ليس مجرد استخراج String طويل.
+The goal is not merely to extract one long string.
 
 ---
 
 ## Scanned PDF
 
-استخدم OCRmyPDF + Tesseract.
+Use OCRmyPDF + Tesseract.
 
-للمحتوى العربي/الإنجليزي:
+For Arabic/English content:
 
 ```text
 ara+eng
 ```
 
-على macOS يمكن استخدام:
+On macOS you can use:
 
 ```bash
 brew install ocrmypdf
 brew install tesseract-lang
 ```
 
-ثم اختبار Tesseract Arabic support قبل معالجة Batch كبير.
+Then test Tesseract Arabic support before processing a large batch.
 
 ## OCR Rule
 
-لا تستخدم OCR على كل ملف تلقائيًا إذا كان لديه Text Layer جيد.
+Do not run OCR on every file automatically if it already has a good text layer.
 
-OCR يستخدم عندما:
+OCR is used when:
 
 ```text
 No usable text layer
@@ -1229,9 +1241,9 @@ Specific pages require OCR
 
 ## Gemma 4 Vision
 
-يستخدم كـFallback أو Reviewer، وليس OCR engine الافتراضي.
+Used as a fallback or reviewer, not as the default OCR engine.
 
-استخدمه عندما توجد:
+Use it when there are:
 
 - Complex tables
 - Diagram
@@ -1244,15 +1256,15 @@ Specific pages require OCR
 
 ## Chunking Strategy
 
-لا تستخدم:
+Do not use:
 
 ```text
 Every 500 tokens
 ```
 
-بصورة عمياء.
+blindly.
 
-ابدأ بـStructural Chunking:
+Start with structural chunking:
 
 ```text
 Course
@@ -1263,7 +1275,7 @@ Course
 → Page / Paragraph
 ```
 
-كل Chunk يحتفظ بـ:
+Every chunk keeps:
 
 ```text
 document_id
@@ -1280,7 +1292,7 @@ embedding
 
 ## Source Citation Requirement
 
-أي سؤال جديد Grounded يجب أن يخزن:
+Any new grounded question must store:
 
 ```text
 document_id
@@ -1292,7 +1304,7 @@ supporting_excerpt
 
 ## PDF Review UI
 
-يفضل أن يعرض:
+It should preferably display:
 
 ```text
 PDF Page
@@ -1322,13 +1334,13 @@ Detected Heading
 
 ## Goal
 
-معرفة جودة الـ25,000 سؤال، وما الذي نحتاج إلى إصلاحه أو إنشائه بدل توليد أسئلة عشوائيًا.
+Know the quality of the 25,000 questions, and what we need to fix or create, instead of generating questions at random.
 
 ## Quality Layers
 
 ### Deterministic Checks
 
-بدون LLM:
+Without an LLM:
 
 - Question not empty
 - Correct answer exists
@@ -1340,7 +1352,7 @@ Detected Heading
 
 ### AI Review
 
-Gemma 4 يفحص:
+Gemma 4 inspects:
 
 - Ambiguous wording
 - Potential multiple correct answers
@@ -1351,7 +1363,7 @@ Gemma 4 يفحص:
 - Explanation mismatch
 - Possible conflict with another question
 
-AI لا يعتمد السؤال نهائيًا.
+AI does not give a question final approval.
 
 ---
 
@@ -1379,7 +1391,7 @@ AI لا يعتمد السؤال نهائيًا.
 
 ## Coverage Classification
 
-حاول تصنيف السؤال إلى:
+Try to classify each question into:
 
 ```text
 Specialization
@@ -1392,24 +1404,24 @@ Cognitive Level
 Predicted Difficulty
 ```
 
-لا تعتمد الـAI taxonomy مباشرة.
+Do not adopt the AI taxonomy directly.
 
-أولًا يجب أن يعتمد الفريق:
+First the team must approve:
 
 ```text
 Official / Internal Taxonomy
 ```
 
-ثم يقوم AI بالتصنيف داخل هذه القائمة.
+Then AI classifies within that list.
 
 ---
 
 ## Coverage Dashboard
 
-مثال:
+Example:
 
 ```text
-Topic: استراتيجيات التدريس
+Topic: Teaching Strategies
 
 Total approved questions: 850
 
@@ -1427,7 +1439,7 @@ Without source:          530
 
 ## Main Output
 
-نريد الوصول إلى Gap Map:
+We want to arrive at a gap map:
 
 ```text
 Topic A has enough questions.
@@ -1436,7 +1448,7 @@ Topic C lacks Application questions.
 Topic D lacks medium/hard questions.
 ```
 
-هذه الخريطة هي Input لمشروع Question Generation.
+This map is the input to the Question Generation project.
 
 ## Acceptance Criteria
 
@@ -1455,7 +1467,7 @@ Topic D lacks medium/hard questions.
 
 ## Goal
 
-مساعدة المدرب على إنشاء Draft Questions من مصادر معتمدة، وليس السماح للـAI بإنشاء ونشر أسئلة تلقائيًا.
+Help the trainer create draft questions from approved sources — not let AI create and publish questions automatically.
 
 ## User Flow
 
@@ -1511,9 +1523,9 @@ Approved Question Bank
 
 ## Prompt Inputs
 
-لا ترسل كتابًا كاملًا للنموذج.
+Do not send a whole book to the model.
 
-أرسل فقط:
+Send only:
 
 ```text
 Task instructions
@@ -1586,9 +1598,9 @@ Generated question
 
 ### Gate 4 — AI Reviewer
 
-استخدم Reviewer prompt منفصلًا عن Generator prompt.
+Use a reviewer prompt that is separate from the generator prompt.
 
-يفحص:
+It checks:
 
 - Multiple answers
 - Ambiguity
@@ -1625,13 +1637,13 @@ AI Draft
 
 ## Goal
 
-استخدام Question Bank النظيفة لإنشاء اختبارات عامة وخاصة بالدورات بشكل منظم وقابل للقياس.
+Use the clean question bank to build public and course-specific tests in an organized, measurable way.
 
 ## Important Boundary
 
-AI يساعد على بناء الاختبار.
+AI helps build the test.
 
-Production يشغل الاختبار.
+Production runs the test.
 
 ## Test Types
 
@@ -1645,7 +1657,7 @@ Production يشغل الاختبار.
 
 ## Assessment Blueprint
 
-مثال:
+Example:
 
 ```text
 Questions: 50
@@ -1679,7 +1691,7 @@ Rules:
 
 ## Non-AI Logic
 
-يجب أن يقوم Laravel / SQL بـ:
+Laravel / SQL must handle:
 
 - Randomization
 - Time limit
@@ -1693,7 +1705,7 @@ Rules:
 
 ## Event Tracking
 
-أضف من البداية:
+Add from the very beginning:
 
 ```text
 exam_started
@@ -1707,7 +1719,7 @@ result_viewed
 course_clicked
 ```
 
-بدون Event Tracking لن تستطيع بناء Project 8 و9 بصورة جيدة.
+Without event tracking you will not be able to build Projects 8 and 9 well.
 
 ## Acceptance Criteria
 
@@ -1726,9 +1738,9 @@ course_clicked
 
 ## Goal
 
-تحويل Telegram إلى قناة تفاعل تقود الطلاب إلى الأسئلة والاختبارات والمنصة.
+Turn Telegram into an engagement channel that drives students toward the questions, the tests, and the platform.
 
-## n8n يصبح مهمًا هنا.
+## n8n becomes important here.
 
 ## Workflow A — Daily Question
 
@@ -1777,9 +1789,9 @@ Telegram failure
 
 ## Workflow E — Approval
 
-في البداية يفضل أن يكون الاعتماد داخل Filament.
+At first, approval should preferably live inside Filament.
 
-n8n يتلقى:
+n8n receives:
 
 ```text
 approved_content_id
@@ -1787,9 +1799,9 @@ publish_at
 channel
 ```
 
-ثم ينشر.
+and then publishes.
 
-هذا يجعل Audit Trail الأساسي داخل النظام نفسه.
+This keeps the primary audit trail inside the system itself.
 
 ## Data to Save
 
@@ -1806,9 +1818,9 @@ status
 
 ## Conversion Tracking
 
-لا تكتفِ بـViews.
+Do not settle for views.
 
-اربط:
+Connect:
 
 ```text
 Telegram
@@ -1836,11 +1848,11 @@ Telegram
 
 ## Goal
 
-استخدام البيانات الفعلية لتحسين الأسئلة، الاختبارات، المحتوى، والتفاعل.
+Use the real data to improve the questions, the tests, the content, and engagement.
 
 ## Calculations
 
-الحسابات الأساسية تتم باستخدام:
+The core calculations are done with:
 
 ```text
 SQL
@@ -1848,7 +1860,7 @@ Python
 Statistical rules
 ```
 
-وليس LLM.
+and not with an LLM.
 
 ## Question Metrics
 
@@ -1885,14 +1897,14 @@ Statistical rules
 
 ## AI Role
 
-Gemma 4 يمكنه:
+Gemma 4 can:
 
 - Explain statistical findings.
 - Summarize anomalies.
 - Produce trainer-facing report.
 - Suggest items for human review.
 
-مثال:
+Example:
 
 ```text
 Question #418 needs review.
@@ -1907,7 +1919,7 @@ Recommendation:
 Review wording and B/C distractors.
 ```
 
-AI لا يحسب النسب بنفسه إذا كانت SQL تستطيع حسابها.
+AI does not compute the rates itself when SQL can compute them.
 
 ## Acceptance Criteria
 
@@ -1925,11 +1937,11 @@ AI لا يحسب النسب بنفسه إذا كانت SQL تستطيع حساب
 
 ## Goal
 
-زيادة التفاعل باستخدام سلوك الطالب الحقيقي وQuestion Bank النظيفة.
+Increase engagement using real student behaviour and the clean question bank.
 
 ## Start Rule-based
 
-لا تبدأ بـMachine Learning.
+Do not start with machine learning.
 
 ## Rules Examples
 
@@ -1958,7 +1970,7 @@ AND never accessed test
 
 ## Daily Practice
 
-مثال:
+Example:
 
 ```text
 5 questions
@@ -1970,7 +1982,7 @@ Streak
 
 ## Personalized Practice
 
-لاحقًا:
+Later:
 
 ```text
 Student history
@@ -1980,9 +1992,9 @@ Student history
 → Build 10-question practice set
 ```
 
-AI يمكن أن يشرح لماذا تم اقتراح Session.
+AI can explain why a session was suggested.
 
-لكن اختيار الأسئلة نفسه يفضل أن يعتمد بدرجة كبيرة على deterministic rules + analytics.
+But the selection of the questions themselves should rely largely on deterministic rules + analytics.
 
 ## Avoid
 
@@ -2006,9 +2018,9 @@ AI يمكن أن يشرح لماذا تم اقتراح Session.
 
 # 20. Arabic Language Strategy
 
-اللغة العربية ليست مجرد Prompt باللغة العربية.
+Arabic is not merely a prompt written in Arabic.
 
-يجب بناء Layer مستقلة للتعامل معها.
+A dedicated layer must be built to handle it.
 
 ## Store Multiple Representations
 
@@ -2020,18 +2032,18 @@ search_text
 
 ## Preserve Original
 
-لا تغيّر:
+Do not change:
 
 - Question wording
 - Correct answer
 - Options
 - Explanation
 
-إلا في Review workflow مع Version History.
+except within a review workflow with version history.
 
 ## Search Normalization
 
-مسموح:
+Allowed:
 
 - Diacritics removal for search only
 - Tatweel removal
@@ -2042,11 +2054,11 @@ search_text
 
 ## Do not over-normalize
 
-تجنب قواعد قد تغيّر المعنى.
+Avoid rules that may change meaning.
 
 ## Mixed Arabic / English
 
-ضع في الاختبارات بيانات تشمل:
+Include in the tests data that covers:
 
 ```text
 Arabic only
@@ -2061,9 +2073,9 @@ Tables
 
 ## Arabic Evaluation
 
-أنشئ Dataset يراجعها مدربون/Moderators.
+Create a dataset reviewed by trainers/moderators.
 
-تقيس:
+It measures:
 
 ```text
 Grammar acceptance
@@ -2075,15 +2087,15 @@ Distractor quality
 Grounding quality
 ```
 
-وجود Multilingual support في Model Card لا يعني أن جودة العربية مناسبة تلقائيًا لاختبارات الرخصة المهنية.
+The presence of multilingual support in a model card does not automatically mean the Arabic quality is adequate for professional-licence exams.
 
-الـEvaluation الخاصة بـInjazEdu هي الحكم.
+The InjazEdu-specific evaluation is the judge.
 
 ---
 
 # 21. PDF & Arabic OCR Evaluation
 
-أنشئ مجموعة اختبار ثابتة من الصفحات:
+Create a fixed test set of pages:
 
 ```text
 10 clean Arabic digital pages
@@ -2093,7 +2105,7 @@ Grounding quality
 10 pages with diagrams/images
 ```
 
-لكل صفحة:
+For each page:
 
 - Gold text.
 - Page number.
@@ -2101,7 +2113,7 @@ Grounding quality
 - Important table values.
 - Known difficult regions.
 
-قِس:
+Measure:
 
 ```text
 Text preservation
@@ -2112,17 +2124,17 @@ Table preservation
 Manual correction time
 ```
 
-لا تعتمد على OCR output فقط لأنه "يبدو جيدًا".
+Do not rely on OCR output just because it "looks good."
 
 ---
 
 # 22. AI Evaluation Strategy
 
-هذه ليست Optional.
+This is not optional.
 
 ## Duplicate Eval Set
 
-مثال:
+Example:
 
 ```text
 500–800 reviewed pairs
@@ -2145,7 +2157,7 @@ conflicting
 200–500 questions
 ```
 
-كل سؤال له Human labels:
+Every question has human labels:
 
 - Clear / unclear
 - One correct answer / multiple
@@ -2164,7 +2176,7 @@ conflicting
 100 generation tasks
 ```
 
-قِس:
+Measure:
 
 - Trainer accept without edit.
 - Accept after small edit.
@@ -2178,9 +2190,9 @@ conflicting
 
 # 23. Prompt Management
 
-لا تخزن Prompts داخل Controller code فقط.
+Do not store prompts inside controller code only.
 
-أنشئ Prompt registry:
+Create a prompt registry:
 
 ```text
 prompt_name
@@ -2194,7 +2206,7 @@ active
 notes
 ```
 
-مثال:
+Example:
 
 ```text
 duplicate-adjudicator:v1
@@ -2203,33 +2215,33 @@ question-generator:v1
 source-grounding-reviewer:v1
 ```
 
-عند تغيير Prompt:
+When a prompt changes:
 
 ```text
 v1 → v2
 ```
 
-لا تستبدل التاريخ.
+Do not overwrite history.
 
-الهدف أن تعرف:
+The goal is to know:
 
-> هل تحسن الـResult بسبب Model جديد أم Prompt جديد؟
+> Did the result improve because of a new model or a new prompt?
 
 ---
 
 # 24. Structured Outputs
 
-كل مهمة قابلة للتنظيم يجب أن ترجع JSON Schema.
+Every structurable task must return a JSON schema.
 
-لا تعتمد على:
+Do not rely on:
 
 ```text
 AI generated paragraph
 ```
 
-ثم Parsing باستخدام Regex.
+and then parse it with regex.
 
-مثال Classification:
+Classification example:
 
 ```json
 {
@@ -2240,13 +2252,13 @@ AI generated paragraph
 }
 ```
 
-Laravel / FastAPI يتحقق من Schema قبل قبول النتيجة.
+Laravel / FastAPI validates the schema before accepting the result.
 
 ---
 
 # 25. Human-in-the-loop Rules
 
-يجب أن يكون الإنسان في Control Point واضح.
+The human must sit at a clear control point.
 
 ## AI may:
 
@@ -2272,11 +2284,11 @@ Laravel / FastAPI يتحقق من Schema قبل قبول النتيجة.
 
 # 26. Production Integration Plan
 
-بعد نجاح المشاريع محليًا، أضف Signed Internal API.
+After the projects succeed locally, add a Signed Internal API.
 
 ## Authentication
 
-يمكن استخدام:
+You can use:
 
 ```text
 HMAC-signed requests
@@ -2285,9 +2297,9 @@ Nonce
 Request body hash
 ```
 
-أو Service-to-service token مع controls قوية.
+or a service-to-service token with strong controls.
 
-الأهم:
+What matters most:
 
 - HTTPS only.
 - Short replay window.
@@ -2298,7 +2310,7 @@ Request body hash
 
 ## Read APIs
 
-مثل:
+Such as:
 
 ```text
 GET /internal/ai/questions
@@ -2309,36 +2321,36 @@ GET /internal/ai/tests
 
 ## Write APIs
 
-يتم تأجيلها.
+Deferred.
 
-لاحقًا، إذا احتجنا Publish-approved Question:
+Later, if we need to publish an approved question:
 
 ```text
 POST /internal/ai/approved-questions
 ```
 
-لكن يجب أن:
+But it must:
 
-- يقبل فقط approved payload.
-- يسجل AI Lab source.
-- يكون Idempotent.
-- لا يسمح بتعديل Historical question دون explicit flow.
+- Accept only an approved payload.
+- Record the AI Lab as the source.
+- Be idempotent.
+- Not allow modifying a historical question without an explicit flow.
 
 ---
 
 # 27. Incremental Sync Strategy
 
-بعد Initial Snapshot:
+After the initial snapshot:
 
-استخدم:
+Use:
 
 ```text
 updated_at + id
 ```
 
-أو Change Log.
+or a change log.
 
-مثال:
+Example:
 
 ```text
 GET /internal/ai/questions/changes
@@ -2346,7 +2358,7 @@ GET /internal/ai/questions/changes
     &after_id=12345
 ```
 
-كل Sync له:
+Every sync has:
 
 ```text
 sync_run_id
@@ -2360,31 +2372,31 @@ deleted
 failed
 ```
 
-إذا فشل Batch، لا تبدأ من الصفر.
+If a batch fails, do not start from zero.
 
 ---
 
 # 28. Data Privacy
 
-حتى لو كانت الأسئلة غير Personal Data، النظام لاحقًا سيتعامل مع Student Analytics.
+Even though the questions are not personal data, the system will later deal with student analytics.
 
 ## Local Development
 
-يفضل:
+Preferably:
 
-- عدم نقل Names.
-- عدم نقل Emails.
-- عدم نقل Phones.
-- استخدام IDs مجهولة.
-- Synthetic student datasets عند بناء Analytics أول مرة.
+- Do not transfer names.
+- Do not transfer emails.
+- Do not transfer phones.
+- Use anonymous IDs.
+- Use synthetic student datasets when building analytics for the first time.
 
-مثال:
+Example:
 
 ```text
 student_ref = hashed/internal surrogate id
 ```
 
-ولا تحتاج AI لمعرفة اسم الطالب حتى يحلل أداءه.
+AI does not need to know a student's name in order to analyse their performance.
 
 ---
 
@@ -2392,20 +2404,20 @@ student_ref = hashed/internal surrogate id
 
 ## Ollama
 
-- Localhost only أثناء التطوير.
-- لا تعرض port `11434` Public مستقبلًا.
-- FastAPI هو Gateway للـAI.
+- Localhost only during development.
+- Do not expose port `11434` publicly in the future.
+- FastAPI is the gateway to the AI.
 
 ## PostgreSQL
 
 - Password.
 - Private network.
-- No public exposure في Production.
+- No public exposure in Production.
 
 ## Redis
 
 - Private only.
-- لا expose Public.
+- Do not expose publicly.
 
 ## n8n
 
@@ -2428,7 +2440,7 @@ student_ref = hashed/internal surrogate id
 
 # 30. Logging & Observability
 
-كل AI Job يسجل:
+Every AI job records:
 
 ```text
 job_id
@@ -2445,7 +2457,7 @@ tokens/usage where available
 human_result
 ```
 
-كل n8n workflow مهم يسجل:
+Every important n8n workflow records:
 
 ```text
 workflow
@@ -2455,13 +2467,13 @@ status
 failure_reason
 ```
 
-لا تخزن Sensitive text في Logs بدون حاجة.
+Do not store sensitive text in logs without need.
 
 ---
 
 # 31. Idempotency
 
-مهم جدًا في:
+Very important in:
 
 - Imports
 - Sync
@@ -2470,13 +2482,13 @@ failure_reason
 - AI generation
 - Production writes
 
-مثال:
+Example:
 
 ```text
 document SHA256
 ```
 
-إذا رُفع نفس الملف:
+If the same file is uploaded again:
 
 ```text
 Do not process it twice unless explicitly versioned.
@@ -2488,15 +2500,15 @@ Telegram:
 publish_key = channel + content_id + scheduled_time
 ```
 
-لتقليل Double Publishing.
+to reduce double publishing.
 
 ---
 
 # 32. Queues
 
-AI processing لا يعمل داخل HTTP request طويل.
+AI processing does not run inside a long HTTP request.
 
-مثال:
+Example:
 
 ```text
 POST /generate-question
@@ -2504,7 +2516,7 @@ POST /generate-question
 → job_id
 ```
 
-ثم:
+Then:
 
 ```text
 Queue Worker
@@ -2514,7 +2526,7 @@ Queue Worker
 → Save
 ```
 
-UI يعرض:
+The UI shows:
 
 ```text
 Queued
@@ -2530,7 +2542,7 @@ Needs review
 
 ## Phase A — Synthetic
 
-قبل Production data:
+Before Production data:
 
 ```text
 100–500 synthetic questions
@@ -2538,7 +2550,7 @@ Needs review
 fake courses
 ```
 
-الهدف:
+The goal:
 
 - Schema.
 - Jobs.
@@ -2549,13 +2561,13 @@ fake courses
 
 ## Phase B — Real Snapshot
 
-استورد نسخة Controlled من الـ25K سؤال.
+Import a controlled copy of the 25K questions.
 
-لا تشمل Student PII.
+Do not include student PII.
 
 ## Phase C — Human Evaluation
 
-استخدم الفريق لمراجعة:
+Use the team to review:
 
 - Duplicate pairs.
 - AI flags.
@@ -2566,21 +2578,21 @@ fake courses
 
 Signed API.
 
-AI Lab يقرأ Changes فقط.
+The AI Lab only reads changes.
 
 ## Phase E — Human-approved Write Integration
 
-فقط عندما تثبت المنظومة نفسها.
+Only once the system has proven itself.
 
 ---
 
 # 34. Recommended First MVP
 
-لا تبدأ بجميع المشاريع.
+Do not start all the projects.
 
 ## MVP 1 — Question Intelligence Foundation
 
-المكونات:
+Components:
 
 ```text
 1. Local stack
@@ -2618,7 +2630,7 @@ Trainer selects source
 → Human approval
 ```
 
-نجاح هذه الثلاثة يعني إثبات أهم Pipeline:
+Succeeding at these three proves the most important pipeline:
 
 ```text
 Existing Data
@@ -2629,7 +2641,7 @@ Existing Data
 → Human Review
 ```
 
-بعد ذلك ابدأ Features الطلاب.
+After that, start the student-facing features.
 
 ---
 
@@ -2675,7 +2687,7 @@ Project 0
 Project 2
 ```
 
-ستتعلم:
+You will learn:
 
 - Ollama
 - Embeddings
@@ -2690,7 +2702,7 @@ Project 3
 Project 5
 ```
 
-ستتعلم:
+You will learn:
 
 - PDF parsing
 - OCR
@@ -2704,7 +2716,7 @@ Project 5
 Project 7
 ```
 
-ستتعلم:
+You will learn:
 
 - n8n
 - Telegram API workflows
@@ -2718,7 +2730,7 @@ Project 7
 Project 8
 ```
 
-ستتعلم:
+You will learn:
 
 - Event tracking
 - SQL
@@ -2731,7 +2743,7 @@ Project 8
 Project 9
 ```
 
-ستتعلم:
+You will learn:
 
 - Rules engines
 - Personalization
@@ -2742,7 +2754,7 @@ Project 9
 
 # 37. What Not to Build Yet
 
-أجّل:
+Defer:
 
 - Full student chatbot.
 - Autonomous AI Agent with Production write access.
@@ -2754,15 +2766,15 @@ Project 9
 - Vector search over every possible production document.
 - Complex multi-agent architecture.
 
-هذه الأشياء تضيف Complexity قبل إثبات القيمة.
+These add complexity before value has been proven.
 
 ---
 
 # 38. Fine-tuning Decision
 
-لا تبدأ Fine-tuning.
+Do not start fine-tuning.
 
-ابدأ:
+Start with:
 
 ```text
 Good data
@@ -2773,7 +2785,7 @@ Good data
 + Evals
 ```
 
-فكر في Fine-tuning فقط إذا كان لديك:
+Consider fine-tuning only if you have:
 
 - Large clean approved dataset.
 - Repeated failure pattern.
@@ -2784,9 +2796,9 @@ Good data
 
 # 39. Model Selection Must Be Empirical
 
-لا تعتمد Gemma 4 E2B فقط لأن حجمه صغير.
+Do not adopt Gemma 4 E2B just because it is small.
 
-اعمل Benchmark:
+Run a benchmark:
 
 | Test | E2B | E4B | 12B |
 |---|---:|---:|---:|
@@ -2798,16 +2810,16 @@ Good data
 | Memory usage | | | |
 | Trainer acceptance | | | |
 
-ثم اختر Model per task إن احتجت.
+Then choose a model per task if needed.
 
-ربما:
+Perhaps:
 
 ```text
 E2B → classification
 E4B/12B → generation
 ```
 
-لكن لا تعتمد هذا قبل الـBenchmark.
+But do not adopt this before the benchmark.
 
 ---
 
@@ -2836,22 +2848,22 @@ Load 25K records
 → SQL transformations
 ```
 
-هذه المعالجة يجب أن تكون Backend jobs.
+This kind of processing must live in backend jobs.
 
 ---
 
 # 41. Telegram Development Instructions
 
-استخدم في البداية:
+At first use:
 
 - Development Bot.
 - Private test channel.
 - Test user accounts.
 - Non-production links.
 
-لا تستخدم Production channel أثناء بناء Workflow.
+Do not use the production channel while building a workflow.
 
-أضف Environment separation:
+Add environment separation:
 
 ```text
 TELEGRAM_ENV=development
@@ -2859,13 +2871,13 @@ TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHANNEL_ID=...
 ```
 
-وفي Production credentials منفصلة.
+and separate credentials in Production.
 
 ---
 
 # 42. Data Versioning
 
-كل شيء مهم يحتاج Versioning:
+Everything important needs versioning:
 
 ```text
 Question revision
@@ -2877,13 +2889,13 @@ Generation rule version
 Assessment blueprint version
 ```
 
-بدون Versioning لن تعرف لماذا اختلف Output بعد عدة أشهر.
+Without versioning you will not know why the output differed several months later.
 
 ---
 
 # 43. Question Lifecycle
 
-اقترح:
+Suggested:
 
 ```text
 source_imported
@@ -2895,7 +2907,7 @@ needs_revision
 archived
 ```
 
-للأسئلة الجديدة:
+For new questions:
 
 ```text
 ai_draft
@@ -2906,7 +2918,7 @@ rejected
 published
 ```
 
-لا تخلط Imported Question مع Generated Draft.
+Do not mix an imported question with a generated draft.
 
 ---
 
@@ -2923,19 +2935,19 @@ superseded
 rejected
 ```
 
-فقط:
+Only:
 
 ```text
 approved
 ```
 
-يمكن استخدامه كمصدر رسمي لتوليد سؤال.
+may be used as an official source for generating a question.
 
 ---
 
 # 45. AI Job Types
 
-استخدم enum واضحًا:
+Use a clear enum:
 
 ```text
 EMBED_QUESTION
@@ -2951,7 +2963,7 @@ REVIEW_GENERATED_QUESTION
 EXPLAIN_ANALYTICS
 ```
 
-هذا يساعد في:
+This helps with:
 
 - Metrics
 - Retry rules
@@ -2962,7 +2974,7 @@ EXPLAIN_ANALYTICS
 
 # 46. Retry Rules
 
-ليست كل الأخطاء Retryable.
+Not every error is retryable.
 
 ## Retry
 
@@ -3003,7 +3015,7 @@ EXPLAIN_ANALYTICS
 
 ## Golden Dataset Tests
 
-تشغّل نفس Eval Dataset بعد:
+Run the same eval dataset after:
 
 - Model change.
 - Prompt change.
@@ -3023,7 +3035,7 @@ Mac
 
 ## Later Staging
 
-يفضل إنشاء Staging قبل Production integration الكامل:
+It is preferable to create a staging environment before full Production integration:
 
 ```text
 Staging Laravel
@@ -3042,9 +3054,9 @@ Hostinger:
 AI Lab
 ```
 
-ولا تنقل Local database نفسها إلى Production.
+And do not move the local database itself into Production.
 
-استخدم:
+Use:
 
 - Migrations.
 - Seeds.
@@ -3054,7 +3066,7 @@ AI Lab
 
 # 49. Hostinger Transition Checklist
 
-عند الانتقال من Mac إلى VPS:
+When moving from the Mac to the VPS:
 
 ```text
 [ ] Linux Docker stack tested.
@@ -3074,7 +3086,7 @@ AI Lab
 [ ] Staging smoke tests completed.
 ```
 
-لا تفترض أن أداء Gemma 4 على الـMac يساوي أداءه على KVM 2؛ الـMac قد يستفيد من Apple GPU/Metal بينما KVM CPU characteristics مختلفة.
+Do not assume Gemma 4's performance on the Mac equals its performance on KVM 2; the Mac may benefit from the Apple GPU/Metal, while KVM CPU characteristics are different.
 
 ---
 
@@ -3124,9 +3136,9 @@ AI Lab
 
 # 51. Definition of Success
 
-نجاح البرنامج لا يعني أن AI ينتج أسئلة كثيرة.
+The program's success does not mean that AI produces many questions.
 
-النجاح يقاس بـ:
+Success is measured by:
 
 ## Question Bank
 
@@ -3177,11 +3189,11 @@ AI Lab
 
 # 52. Recommended Immediate Next Steps
 
-ابدأ بهذا الترتيب فقط:
+Start in this order only:
 
 ## Step 1
 
-أنشئ repository:
+Create the repository:
 
 ```text
 injazedu-ai-lab
@@ -3189,7 +3201,7 @@ injazedu-ai-lab
 
 ## Step 2
 
-شغّل:
+Run:
 
 ```text
 PostgreSQL + pgvector
@@ -3200,15 +3212,15 @@ Ollama
 
 ## Step 3
 
-أنشئ Laravel + Filament Lab.
+Create the Laravel + Filament Lab.
 
 ## Step 4
 
-أنشئ FastAPI AI Service.
+Create the FastAPI AI Service.
 
 ## Step 5
 
-اختبر:
+Test:
 
 ```text
 FastAPI → Ollama → Gemma 4
@@ -3217,13 +3229,13 @@ FastAPI → Ollama → EmbeddingGemma
 
 ## Step 6
 
-أنشئ Schema لاستيراد الأسئلة.
+Create the schema for importing questions.
 
 ## Step 7
 
-ابدأ بـ100 سؤال فقط.
+Start with only 100 questions.
 
-نفذ:
+Execute:
 
 ```text
 Import
@@ -3235,13 +3247,13 @@ Import
 
 ## Step 8
 
-بعد نجاح 100 سؤال:
+After the 100 questions succeed:
 
 ```text
 1,000 questions
 ```
 
-ثم:
+then:
 
 ```text
 25,000 questions
@@ -3249,11 +3261,11 @@ Import
 
 ## Step 9
 
-أنشئ أول Duplicate Review Screen.
+Build the first Duplicate Review screen.
 
 ## Step 10
 
-لا تبدأ PDF أو Generation حتى تستطيع مراجعة Duplicate candidates بصورة موثوقة.
+Do not start PDF or generation until you can review duplicate candidates reliably.
 
 ---
 
@@ -3261,24 +3273,24 @@ Import
 
 ## Ollama
 
-المتطلبات الحالية لـOllama على macOS هي macOS 14 Sonoma أو أحدث.
+Ollama's current requirement on macOS is macOS 14 Sonoma or newer.
 
-على Apple M-series يدعم Ollama GPU acceleration باستخدام Metal.
+On Apple M-series, Ollama supports GPU acceleration using Metal.
 
-تحقق:
+Check:
 
 ```bash
 ollama --version
 ```
 
-ثم:
+Then:
 
 ```bash
 ollama pull embeddinggemma:300m-qat-q4_0
 ollama pull gemma4:e2b-it-qat
 ```
 
-اختبر:
+Test:
 
 ```bash
 ollama list
@@ -3293,13 +3305,13 @@ brew install ocrmypdf
 brew install tesseract-lang
 ```
 
-تحقق من اللغات:
+Check the languages:
 
 ```bash
 tesseract --list-langs
 ```
 
-يجب أن تجد:
+You should find:
 
 ```text
 ara
@@ -3310,9 +3322,9 @@ eng
 
 ## PostgreSQL + pgvector
 
-في Local Development الأفضل استخدام Docker image تحتوي pgvector بدل بناء Extension يدويًا كل مرة.
+In local development it is better to use a Docker image that already contains pgvector, instead of building the extension by hand every time.
 
-بعد تشغيل Database:
+After starting the database:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -3322,7 +3334,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 # 54. Suggested Local Environment Variables
 
-مثال فقط، ولا تستخدم Production secrets:
+An example only — do not use Production secrets:
 
 ```dotenv
 APP_ENV=local
@@ -3349,13 +3361,13 @@ PRODUCTION_SYNC_ENABLED=false
 PRODUCTION_WRITE_ENABLED=false
 ```
 
-وجود:
+Having:
 
 ```text
 PRODUCTION_WRITE_ENABLED=false
 ```
 
-كـKill Switch مفيد حتى بعد بدء Integration.
+as a kill switch is useful even after integration has begun.
 
 ---
 
@@ -3408,15 +3420,15 @@ ENGAGEMENT
 
 # 56. Final Principle
 
-لا يكون الهدف:
+The goal is not:
 
-> كيف نضع AI في InjazEdu؟
+> How do we put AI into InjazEdu?
 
-بل:
+but rather:
 
-> ما العملية التي نريد تحسينها، وما الجزء الذي يجب أن ينفذه Code أو SQL أو Workflow أو LLM أو Human؟
+> Which process do we want to improve, and which part of it should be executed by code, or SQL, or a workflow, or an LLM, or a human?
 
-التقسيم الأفضل:
+The better division:
 
 ```text
 Deterministic Code
@@ -3447,13 +3459,13 @@ Humans
 → final educational approval
 ```
 
-بهذا الشكل يظل المشروع مفيدًا لـInjazEdu حتى لو تم تغيير Gemma 4 مستقبلًا إلى Model آخر.
+This way the project stays useful to InjazEdu even if Gemma 4 is later swapped for another model.
 
 ---
 
 # 57. Verified Technical References
 
-تم التحقق من المعلومات التقنية التالية في أغسطس 2026:
+The following technical information was verified in August 2026:
 
 - Ollama macOS documentation:  
   https://docs.ollama.com/macos
@@ -3490,9 +3502,9 @@ Humans
 
 # 58. Document Status
 
-هذا المستند هو **Implementation Roadmap v1.0**.
+This document is **Implementation Roadmap v1.0**.
 
-ينبغي تحديثه عند اتخاذ قرارات مهمة مثل:
+It should be updated when important decisions are taken, such as:
 
 - Final local Docker architecture.
 - Production Internal API design.
@@ -3505,4 +3517,4 @@ Humans
 - Assessment event schema.
 - Production deployment capacity.
 
-لا تثبت هذه القرارات قبل وجود بيانات وتجارب كافية.
+Do not fix these decisions before there is enough data and experimentation.
