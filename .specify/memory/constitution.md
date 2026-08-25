@@ -1,6 +1,6 @@
 # InjazEdu AI Assessment & Engagement Lab — Constitution
 
-**Version**: 2.1.0 | **Last amended**: 2026-08-23
+**Version**: 2.2.0 | **Last amended**: 2026-08-25
 
 This governs `injazedu-ai-lab`: a **local-first, single-developer** AI laboratory built around the
 production platform `injazedu.co`. It is binding on every spec, plan, task list, and commit here.
@@ -11,7 +11,9 @@ a process asks for them. Where a rule below and a document elsewhere disagree, t
 Reference documents (context, not contracts):
 
 - `docs/plans/core/final_injazedu_ai_assessment_engagement_lab_full_plan.md` (v2.0) — the program
-- `docs/plans/project/1/p0-ai-lab-foundation.md` — the current project's execution plan
+- `docs/plans/project/1/p1-production-profiling-and-question-mirror.md` — the current project's
+  execution plan
+- `docs/plans/project/0/p0-ai-lab-foundation.md` — the previous project, implemented and closed
 - `docs/schema/injazedu-db-schema.md` — the production schema
 - `docs/plans/lean-development-process.md` — why this file looks the way it does
 
@@ -23,21 +25,29 @@ Where a plan and the measured schema conflict, **the schema wins** and the plan 
 
 **This principle has priority over every other.**
 
-Do not decide architecture, infrastructure, security, database, dependency, or workflow questions
-that this repository or the operator has not already settled.
+The gate is narrow on purpose (narrowed 2026-08-25). It covers what cannot be undone by an edit —
+not every design question.
 
-If something is ambiguous, unspecified, contradictory, missing, carries a meaningful trade-off, or
-would change the architecture, add infrastructure, add a security restriction, or reverse a stated
-decision — **stop and ask before deciding or implementing it.**
+```text
+Stop and ask before deciding:
+  · anything that moves a data boundary or weakens a security property
+  · anything expensive to reverse once data exists — the mirror schema shape,
+    STUDENT_REF_PEPPER, the embedding contract
+  · new infrastructure, services, accounts, or dependencies on this machine
+  · a change to the scope of the current project
 
-You may identify the problem, lay out the options, explain the trade-offs, and recommend one. Then
-wait. Do not silently pick what you believe is best practice.
+Decide with judgement, and state it in the plan:
+  · ordinary architecture, patterns, class boundaries, library choices
+  · anything reversible by an edit
+```
+
+When you must ask: identify the problem, lay out the options, explain the trade-offs, and recommend
+one. Then wait. Do not silently pick what you believe is best practice.
 
 Never grant yourself extra constraints, permissions, infrastructure, services, accounts, or scope.
 
-**This does not apply to ordinary implementation.** Where the architecture and requirements already
-establish the intended behaviour, use normal engineering judgement and get on with it. The gate is
-for **meaningful decisions**, not for every line of code.
+**Ordinary implementation is not gated.** Where the architecture and requirements already establish
+the intended behaviour, use normal engineering judgement and get on with it.
 
 ---
 
@@ -124,6 +134,13 @@ any cloud-synced folder, and is never copied to another machine. It is stamped w
 `snapshot_taken_at`. Note the measured exposure: `personal_access_tokens` (~24,408) and
 `social_providers` (~17,369) may contain **live credentials**.
 
+**The copy is fixed at `snapshot_taken_at = 2026-08-07`** and is the source for the entire local
+program (operator decision, 2026-08-25; closes P0 §8 item E). There is no refresh, no cadence, and
+**no gate anywhere may block on the copy's age**. The date is recorded and displayed as context so
+every number is read in its own frame — never as a threshold. The operator may inspect, query,
+transform, or modify this local copy freely; the read-only rule above governs what the **Lab
+application** does to it, which is what the three layers enforce.
+
 **Lab-owned public surfaces collect no PII by design** — no login, email, phone, or name; only a
 random first-party session id, and nothing that does not feed a declared metric.
 
@@ -184,6 +201,11 @@ mutation testing are out of scope.
 
 Every statistical output must be reproducible from raw rows, and a sample-based test must prove it.
 
+**Tests reduce meaningful risk; they do not maximise count.** Do not test trivial framework
+behaviour, simple accessors, or UI wiring that Laravel and Filament already guarantee. Where the
+risk is real — domain logic, derivations, data integrity, security boundaries, ETL idempotency and
+resume, AI structured-output contracts — test it properly.
+
 Infrastructure is verified by shell scripts; application behaviour is verified by the framework's
 own test runner. Each tool checks what it is good at.
 
@@ -233,17 +255,30 @@ The 16 GB M1 Pro is a real constraint, managed rather than gated (amended 2026-0
 
 ## How Work Gets Done
 
-- **Flow**: `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`, one
-  branch per increment.
+- **Flow**: `/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`, **one
+  spec per project**, on one branch. A project is not split into increments unless its own plan says
+  so and gives an engineering reason.
 - **Artefacts earn their place.** `spec.md`, `plan.md`, and `tasks.md` are the default.
   `research.md`, `contracts/`, and `checklists/` are written **only when they change what gets
   built** — never because a template lists them.
 - **Tasks are implementation, testing, infrastructure, and safety work.** A documentation task needs
   a reason beyond "the process asks for one".
-- **ADRs are the exception, not the routine.** Write one only when a decision is architectural,
-  durable, and expensive to reverse. Not for which PHP binary to invoke, where `.env` sits, a Docker
-  setting, a dependency version, or an ordinary implementation choice. If an existing ADR only
-  exists because an old process demanded it, delete it and clean up the references.
+- **ADRs are the exception, not the routine.** Write one only when a decision is architectural
+  **and** durable **and** expensive to reverse. Not for which PHP binary to invoke, where `.env`
+  sits, a Docker setting, a dependency version, or an ordinary implementation choice.
+- **Documentation policy**: code first · tests for important behaviour · documentation only when it
+  has continuing practical value. Prefer updating an existing document over creating another.
+  Reports, handover documents, acceptance records, checklists, and phase summaries are **not**
+  produced by default. A new runbook needs a real manual procedure you will perform again — starting
+  or recovering the stack, a complicated import, a future deployment. Implementation decisions,
+  measurements, normal development commands, and explanations of code belong in the code, the tests,
+  the configuration, `README.md`, or the project plan.
+- **Gate policy**: a gate protects a real engineering property or prevents an expensive failure —
+  no writes to the source, no PII in Lab storage, ETL correctness, idempotency where re-running is
+  expected, model or eval quality thresholds where bad output would reach users. These are the only
+  gates. **Procedural gates are not gates** and are not written: mandatory report authoring,
+  documentation review, handover sign-off, a memory number, the snapshot's age, or any check whose
+  only purpose is satisfying another document.
 - **Done** means: it runs, its tests pass, and you said plainly what you skipped. If a check was
   skipped, say so. If a metric is below its gate, say so and stop. Claiming completion without a
   passing verification run is a violation, not a style issue.

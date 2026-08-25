@@ -9,7 +9,7 @@ We now need to create an implementation plan for the first project, including al
 3. The database schema for production for Injazedu in `docs/schema/injazedu-db-schema.md`.
 
 
-Finally, create the plan for the first project at `docs/plans/project/1/{Put the name of the first project}.md`, Create only the plan, and do not implement the no-code.
+Finally, create the plan for the first project at `docs/plans/project/0/{Put the name of the first project}.md`, Create only the plan, and do not implement the no-code.
 
 
 Please ask for any clarification

@@ -4,7 +4,7 @@
 window recorded at the bottom of this file · **Rule**: every line is either **met, with its
 evidence** (a command, its output, a date), or **not met, with the reason**. No third state.
 
-Source list: `docs/plans/project/1/p0-ai-lab-foundation.md` §13.
+Source list: `docs/plans/project/0/p0-ai-lab-foundation.md` §13.
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
