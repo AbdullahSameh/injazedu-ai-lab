@@ -324,27 +324,27 @@ decision made somewhere else (FR-032).
 
 ### The backfill passes — one idempotent second-pass pattern, three uses
 
-- [ ] T060 [US2] `apps/lab/app/Jobs/Import/BackfillQuestionsCount.php` — `source_sections.questions_count`,
+- [X] T060 [US2] `apps/lab/app/Jobs/Import/BackfillQuestionsCount.php` — `source_sections.questions_count`,
   after `source_questions` exists (FR-013)
-- [ ] T061 [US2] `apps/lab/app/Jobs/Import/BackfillRequiresMediaReview.php` —
+- [X] T061 [US2] `apps/lab/app/Jobs/Import/BackfillRequiresMediaReview.php` —
   `source_questions.requires_media_review` from audio/video `source_media` rows, after
   `source_media` exists (FR-034)
-- [ ] T062 [US2] `apps/lab/app/Jobs/Import/BackfillAnswerKeyState.php` — **gated on T015's multi-key
+- [X] T062 [US2] `apps/lab/app/Jobs/Import/BackfillAnswerKeyState.php` — **gated on T015's multi-key
   decision**. Sets `answer_key_state` from `correct_option_count` under the recorded policy, touches
   no other column, and re-running changes nothing. No question may leave `pending` on a guess
   (FR-061, SC-020)
 
 ### Idempotency and resume
 
-- [ ] T063 [P] [US2] `apps/lab/tests/Feature/ImportIdempotencyTest.php` — two consecutive runs
+- [X] T063 [P] [US2] `apps/lab/tests/Feature/ImportIdempotencyTest.php` — two consecutive runs
   against a fixed set: the second reports `rows_inserted = 0`, `rows_updated = 0`, `error_count = 0`,
   and `rows_unchanged` equals the mirror. Cover a bank table **and** `source_results` (the one
   behavioural table still mirrored). The write path itself is already covered by
   `BatchUpsertIdempotencyTest` (T059d); this is the end-to-end command-level version (FR-024, SC-007)
-- [ ] T064 [P] [US2] `apps/lab/tests/Feature/ImportResumeTest.php` — interrupt mid-batch, then
+- [X] T064 [P] [US2] `apps/lab/tests/Feature/ImportResumeTest.php` — interrupt mid-batch, then
   `--resume`: continues from the cursor, final counts match, **no row exists twice and none is
   missing**. Test the interruption in practice, not in theory (FR-025, SC-008)
-- [ ] T065 [P] [US2] `apps/lab/tests/Feature/ImportQueueParityTest.php` — the same input through
+- [X] T065 [P] [US2] `apps/lab/tests/Feature/ImportQueueParityTest.php` — the same input through
   the inline path and through `--queue` produces the same mirror, and both record `ran_via`
   (FR-029, SC-019)
 

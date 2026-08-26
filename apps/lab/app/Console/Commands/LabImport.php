@@ -2,6 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\Import\BackfillAnswerKeyState;
+use App\Jobs\Import\BackfillQuestionsCount;
+use App\Jobs\Import\BackfillRequiresMediaReview;
 use App\Jobs\Import\Bank\ImportCategories;
 use App\Jobs\Import\Bank\ImportChapters;
 use App\Jobs\Import\Bank\ImportCourses;
@@ -28,20 +31,25 @@ use Throwable;
  * FR-029). Synchronous by default with a real exit code; `--queue`
  * dispatches the identical job classes to the `database` queue instead —
  * same jobs, same resume cursor, same upsert, only the dispatcher differs
- * (FR-029). `--kind=all` runs `bank` then `behaviour` as two separate
- * `import_runs` rows, because `kind` is a closed set of real values
- * (data-model.md §2) and "all" is a CLI convenience, never a stored one.
+ * (FR-029). `--kind=all` runs `bank`, `behaviour` then `backfill` as three
+ * separate `import_runs` rows, because `kind` is a closed set of real
+ * values (data-model.md §2) and "all" is a CLI convenience, never a stored
+ * one.
  *
- * `jobClassesFor()` registers the Bank ETL (T045–T053) and the Behavioural
- * ETL (T055–T058); the Backfills (T060–T062) are separate commands, not
- * `--kind` values, and are not dispatched from here.
+ * `jobClassesFor()` registers the Bank ETL, the Behavioural ETL and the
+ * three backfill passes. `backfill` is a `--kind` rather than a command of
+ * its own: `import_runs.kind` already carries it as a first-class value
+ * (data-model.md §2), a backfill needs the same run row, counters and
+ * inline/queue dispatch every other pass gets, and the plan's project
+ * structure lists exactly two commands. A second command would have
+ * duplicated all of that to reach three single-statement jobs.
  */
 final class LabImport extends Command
 {
-    private const KINDS = ['bank', 'behaviour', 'all'];
+    private const KINDS = ['bank', 'behaviour', 'backfill', 'all'];
 
     protected $signature = 'lab:import
-        {--kind=all : Which tables to import: bank, behaviour, or all}
+        {--kind=all : Which tables to import: bank, behaviour, backfill, or all}
         {--resume : Continue the last run of this kind from its resume_cursor}
         {--chunk= : Rows per batch (defaults to config(lab.import.chunk_size))}
         {--queue : Dispatch the same job classes to the database queue instead of running inline}';
@@ -72,7 +80,9 @@ final class LabImport extends Command
 
         $runs = [];
 
-        foreach ($kindOption === 'all' ? ['bank', 'behaviour'] : [$kindOption] as $kind) {
+        // Backfills last in `all`: each rewrites one mirror column from a
+        // table the bank pass has to have finished writing first.
+        foreach ($kindOption === 'all' ? ['bank', 'behaviour', 'backfill'] : [$kindOption] as $kind) {
             $run = $this->runKind($recorder, $kind, $snapshot->id, $ranVia, $resuming, $chunkSize);
 
             if ($run === null) {
@@ -126,8 +136,16 @@ final class LabImport extends Command
             foreach ($this->jobClassesFor($kind) as $jobClass) {
                 $job = new $jobClass($run->id);
 
+                // `onConnection()` goes on the JOB, not on the return of
+                // `Bus::dispatch()`. For a ShouldQueue command that facade
+                // returns the pushed job's id — an int — so chaining off it
+                // fatals with "Call to a member function onConnection() on
+                // int" and takes the whole run down. Only the global
+                // `dispatch()` helper returns a chainable PendingDispatch;
+                // the facade never has. Every job here uses the `Queueable`
+                // trait, which is where the real `onConnection()` lives.
                 $this->option('queue')
-                    ? Bus::dispatch($job)->onConnection('database')
+                    ? Bus::dispatch($job->onConnection('database'))
                     : Bus::dispatchSync($job);
             }
 
@@ -178,6 +196,16 @@ final class LabImport extends Command
                 ComputeItemStats::class,
                 ComputeOptionStats::class,
             ],
+            // Second passes over the mirror, each rewriting one column that
+            // could not be derived at copy time because the mandatory bank
+            // order puts the table it depends on later (FR-013, FR-034,
+            // FR-061). Order between them is free — they touch three
+            // different columns and none reads what another writes.
+            'backfill' => [
+                BackfillQuestionsCount::class,
+                BackfillRequiresMediaReview::class,
+                BackfillAnswerKeyState::class,
+            ],
         };
     }
 
@@ -190,8 +218,15 @@ final class LabImport extends Command
             'regardless of how it was invoked.',
             '',
             'Flags:',
-            '  --kind=bank|behaviour|all  Which tables to import. "all" runs bank then',
-            '                             behaviour as two separate import_runs rows.',
+            '  --kind=bank|behaviour|backfill|all',
+            '                             Which tables to import. "all" runs bank, then',
+            '                             behaviour, then backfill as three separate',
+            '                             import_runs rows. "backfill" re-derives the three',
+            '                             columns that depend on a table the bank pass',
+            '                             writes later: source_sections.questions_count,',
+            '                             source_questions.requires_media_review and',
+            '                             source_questions.answer_key_state. It reads no',
+            '                             MySQL and touches one column per pass.',
             '  --resume                   Continue the last run of this --kind from its',
             '                             recorded resume_cursor (table => last confirmed',
             '                             source_id) instead of starting over. Never',

@@ -100,6 +100,22 @@ return [
     'import' => [
         'chunk_size' => 10000,
         'source_system' => 'injazedu_production',
+
+        /*
+        | The multi-key decision (FR-061), recorded 2026-08-26 by the
+        | operator from queries 3 and 4: 34 questions carry more than one
+        | correct option (33 at 2, 1 at 4 — 0.118% of active questions), and
+        | they are **data-entry errors, not a supported question type**. A
+        | valid question has exactly one correct option;
+        | `answer_key_state = multi_key` is a review flag, never an
+        | answerable item. Nothing is repaired or deleted in P1.
+        |
+        | Recorded in §13 of the program plan beside the measurement it came
+        | from. App\Jobs\Import\BackfillAnswerKeyState refuses to run while
+        | this is null — that refusal is what stops a question leaving
+        | `pending` on a guess (SC-020).
+        */
+        'multi_key_policy' => 'data_entry_error',
     ],
 
     /*
