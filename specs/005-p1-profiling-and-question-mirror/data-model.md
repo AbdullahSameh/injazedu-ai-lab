@@ -3,7 +3,7 @@
 **Date**: 2026-08-25 · **Spec**: [spec.md](./spec.md) · **Plan**: [plan.md](./plan.md) ·
 **Findings**: [notes.md](./notes.md)
 
-Fourteen Lab-owned PostgreSQL tables. Every column below is checked against
+Fifteen Lab-owned PostgreSQL tables. Every column below is checked against
 `docs/schema/injazedu-db-schema.md`; **where the P1 plan and the measured schema disagreed, the
 schema won** and the difference is noted.
 
@@ -14,7 +14,8 @@ expensive to reverse once data exists (Principle I). It is worth pinning before 
 
 ## 1. The common columns
 
-Every mirror table (the twelve `source_*` tables; not `import_runs` / `import_errors`):
+Every mirror table (the eleven mirroring `source_*` tables; not `import_runs`, `import_errors`,
+`source_snapshots`, or the two derived `*_stats` tables, none of which mirror a source row):
 
 | Column | Type | Note |
 |---|---|---|
@@ -29,16 +30,15 @@ Every mirror table (the twelve `source_*` tables; not `import_runs` / `import_er
 
 `UNIQUE (source_system, source_id)` on every one — the upsert target.
 
-**`source_deleted_at` is structurally always NULL on `source_media` and `source_answers`**
-(notes N3): `quiz_files` and `question_result` have no soft delete. The column stays for uniformity;
-the migration says why it can never fill.
+**`source_deleted_at` is structurally always NULL on `source_media`** (notes N3): `quiz_files` has
+no soft delete. The column stays for uniformity; the migration says why it can never fill.
 
 **`payload_hash` rule** (spec clarification, FR-018): every table hashes a key-sorted JSON of **its
 own copied source columns**. `source_questions` is the **only** exception and uses §16's definition
 verbatim — `name`, `description`, `hint`, and the options ordered by `option_index` with `name` and
 `points` — so editing an option changes the question's hash.
 
-**There is no `user_id` column in any of the fourteen tables.**
+**There is no `user_id` column in any of the fifteen tables.**
 
 ---
 
@@ -157,24 +157,69 @@ inside `questions.name` are a **second, independent** media path, detected via `
 
 ### `source_results` — behavioural, pseudonymized
 
-`quiz_source_id` · `total_points` · `student_ref CHAR(64)` · `attempt_index` ·
+`quiz_source_id` · `total_points` · `student_ref CHAR(64) NULLABLE` · `attempt_index` ·
 `duration_estimate_seconds` + common (`source_deleted_at` **does** populate here).
 
 | Derived | Rule |
 |---|---|
-| `student_ref` | `HMAC-SHA256(pepper, user_id)`. `user_id` is read, hashed and discarded in the same statement |
-| `attempt_index` | `ROW_NUMBER() OVER (PARTITION BY student_ref, quiz_source_id ORDER BY source_created_at)` — computed **in Postgres**, second pass |
-| `duration_estimate_seconds` | `updated_at − created_at`, **labelled an approximation in the column name** so it is never read as a real duration |
+| `student_ref` | `HMAC-SHA256(pepper, user_id)`. `user_id` is read, hashed and discarded in the same statement. **NULL when `user_id` is NULL** (found running the real import, 2026-08-26 — undocumented until then): 808,776 of 1,136,204 `results` rows (71%) have a NULL `user_id`, 767,138 of those also soft-deleted. There is no id to hash, and a fabricated/sentinel value would falsely correlate unrelated anonymous attempts as one identity, so the column is nullable and these rows carry NULL |
+| `attempt_index` | `ROW_NUMBER() OVER (PARTITION BY student_ref, quiz_source_id ORDER BY source_created_at)` — computed **in Postgres**, second pass, **over rows with a non-NULL `student_ref` only**; anonymous rows keep a permanent NULL `attempt_index` |
+| `duration_estimate_seconds` | `updated_at − created_at`, **labelled an approximation in the column name** so it is never read as a real duration. Measured 2026-08-26: 806,349 rows exceed 2 hours and **every one of them is soft-deleted** — on a deleted attempt `updated_at` is the deletion timestamp, not the end of the attempt. Only the 329,855 non-deleted rows carry a usable estimate; consumers must filter `source_deleted_at IS NULL` |
 
-### `source_answers` — from `question_result`
+### `source_item_stats` · `source_option_stats` — derived, not mirrored (ADR-022)
 
-`result_source_id` · `question_source_id` · `option_source_id` · `points` ·
-`is_correct_derived` (`points > 0`) + common (`source_deleted_at` never populates).
+`question_result` is **never mirrored**. It is unbounded behavioural data — 13,776,378 rows growing
+with students × time — and nothing in the program annotates an individual answer event. Everything
+read from it is a `GROUP BY` whose result is bounded by the **question** count, so it is read as
+statistics and stored as two derived tables. `question_result` sits on `profile_tables` since
+2026-08-26, so `assertCopyable()` refuses it by name: the rule is structural, not conventional.
 
-**Structural limit, recorded not worked around**: `question_result.option_id` is **NOT NULL**, so a
-skipped question produces **no row at all**. "No answer" cannot be distinguished from "not shown".
-And because `question_result` has no soft delete while `results` does, **exclusion of deleted
-attempts must go through `source_results`** (notes N3).
+**These two carry no common mirror columns** — no `source_system`, `source_id`, `source_created_at`
+or `payload_hash`. They are not mirrors of source rows. `snapshot_id` carries provenance and
+`stats_hash` detects change, the same way `source_snapshots` is a register rather than a mirror.
+
+`scope` is a row discriminator, not parallel columns: `'active'` counts attempts whose
+`results.deleted_at` is NULL, `'all'` counts every attempt. 71% of `results` rows are soft-deleted,
+so the two differ substantially and choosing between them is P3's call. A third scope costs a row,
+never a migration.
+
+```text
+source_item_stats     question_source_id · scope · n · n_correct · p_value
+                      m1_corrected · m0_corrected · sd_corrected
+                      computed_at · import_run_id · snapshot_id · stats_hash
+                      UNIQUE (question_source_id, scope)          58,284 rows
+
+source_option_stats   question_source_id · option_source_id · scope
+                      chosen_n · chosen_share · is_key
+                      computed_at · import_run_id · snapshot_id · stats_hash
+                      UNIQUE (option_source_id, scope)           249,098 rows
+```
+
+| Derived | Rule |
+|---|---|
+| `p_value` | `n_correct / n`. **Cast to DOUBLE before dividing** — MySQL quantizes both `AVG()` over an integer expression and decimal division to 4 decimal places, which silently put a 5e-5 error on 18,586 questions |
+| `m1_corrected` · `m0_corrected` | Mean **corrected** total (`total_points − points`) for right and wrong responders. Uncorrected, the point-biserial inflates itself (core plan §P3) |
+| `sd_corrected` | `STDDEV_SAMP` of the corrected total. NULL when `n < 2` |
+| `chosen_share` | `chosen_n / Σ chosen_n` for the question. Sums to exactly 1 per question with answers |
+| `is_key` | copied from `source_question_options.is_correct_derived` so a distractor screen needs no join back |
+
+**`r_pbis` is not stored** — it is P3's headline metric and one arithmetic line over these columns,
+needing no raw rows. P1 stores only what genuinely requires the (attempt × question) grain.
+
+**Two completeness rules that a plain `GROUP BY` would silently break**: `source_option_stats` is
+built from `source_question_options LEFT JOIN` the aggregate, because 45,840 of 124,549 options (37%)
+were never chosen and the aggregate alone returns only the 78,709 that were — losing exactly the rows
+"a distractor chosen by under 2% is dead" exists to find. And the 1,328 questions with no answer data
+get rows with `n = 0`, so "measured, nothing there" stays distinguishable from "never computed".
+
+**Stored statistics are rounded to 10 decimal places.** PostgreSQL renders `double precision` at
+fewer digits than PHP's `precision = 14` parses back, so an unrounded double returns differing in the
+15th digit and no longer matches its own `stats_hash`. The largest magnitude here is ~132, so 10
+decimals is at most 13 significant digits and round-trips exactly.
+
+**Structural limit, recorded not worked around** (notes N3): `question_result.option_id` is NOT NULL,
+so a skipped question produces **no row at all** and contributes to no count. "No answer" cannot be
+distinguished from "not shown", in the raw rows or in these aggregates.
 
 ### `import_runs` · `import_errors`
 
@@ -187,6 +232,13 @@ import_runs   : id · snapshot_id · kind (profile|bank|behaviour|backfill)
 import_errors : id · import_run_id · source_table · source_id
                 severity (info|warning|error) · code · message · context JSONB · created_at
 ```
+
+**`resume_cursor` is id-based, and that is only valid against a frozen snapshot.** `WHERE id > ?`
+sees rows appended past the last confirmed id; it is structurally blind to *edits* of rows already
+copied, because it never looks at them again. Against the fixed 2026-08-07 snapshot nothing changes,
+so this is correct and cheap. A live source would need a watermark on `(updated_at, id)`, compared as
+a pair — `updated_at` alone is not unique and a same-timestamp batch can straddle a boundary.
+Recorded, not built (ADR-022).
 
 `import_errors` is **append-only, scoped by `import_run_id`, never deleted or rewritten** (spec
 clarification, FR-027). A run that writes nothing logs nothing — which is exactly why the console's
@@ -201,12 +253,17 @@ can see the raw value.
 ## 3. Indexes — earned, not assumed
 
 ```text
-source_questions(section_source_id)          source_answers(question_source_id)
-source_question_options(question_source_id)  source_answers(result_source_id)
+source_questions(section_source_id)          source_option_stats(question_source_id)
+source_question_options(question_source_id)
 source_results(quiz_source_id)               source_results(student_ref)
 ```
 
-Plus the fourteen UNIQUE constraints on (`source_system`, `source_id`), which the upsert needs.
+Plus the eleven UNIQUE constraints on (`source_system`, `source_id`) that the mirror upsert needs,
+and the two natural-key UNIQUEs the derived tables use instead —
+`source_item_stats(question_source_id, scope)` and `source_option_stats(option_source_id, scope)`.
+
+The `source_answers(question_source_id)` and `source_answers(result_source_id)` indexes are gone with
+the table (ADR-022).
 
 **No vector index and no trigram index** — there is nothing to index yet (constitution VII).
 

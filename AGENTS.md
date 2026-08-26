@@ -7,10 +7,10 @@ Read before writing code for it:
 
 - **Spec Kit artefacts (current, read first)**: `specs/005-p1-profiling-and-question-mirror/` —
   `spec.md` (63 FRs, 5 clarifications), `plan.md` (nine implementation groups, one open question),
-  `data-model.md` (the fourteen tables, checked against the schema), `notes.md` (Phase 0 findings),
+  `data-model.md` (the fifteen tables, checked against the schema), `notes.md` (Phase 0 findings),
   `contracts/profiling-results.md`
 - Project plan: `docs/plans/project/1/p1-production-profiling-and-question-mirror.md` (v2.0, leaned
-  2026-08-25) — ten phases, fourteen mirror tables, the derivation core, the ETL, the console
+  2026-08-25) — ten phases, the mirror tables, the derivation core, the ETL, the console
 - Program §16: `docs/plans/core/final_injazedu_ai_assessment_engagement_lab_full_plan.md`
 - Production schema: `docs/schema/injazedu-db-schema.md` — **where plan and schema disagree, the
   schema wins**
@@ -34,12 +34,18 @@ user: root / no password                             ▲
 alone: an empty write-host list on the `injazedu` connection · a query listener that throws on any
 non-read · `SourceReader`, which refuses by name any table outside **two** lists.
 
-**Two allowlists since 2026-08-23** (P0 §3.2, ADR-021 revised) — reading and storing are different
-acts: `source_tables` (11) may be **copied into** the Lab · `profile_tables` (6) —
-`course_user`, `course_order`, `orders`, `user_roles`, `roles`, `book_course` — may be **read as
-counts and never stored**, which unblocks §6 queries 15, 16 and 18 · the remaining **15** are refused
-in both directions, `users` among them, so `lab:health` check 10 is unaffected. Never use the union
-as a copy check: `assertReadable()` and `assertCopyable()` are separate on purpose.
+**Two allowlists** (P0 §3.2, ADR-021 revised 2026-08-23 and 2026-08-26) — reading and storing are
+different acts: `source_tables` (**10**) may be **copied into** the Lab · `profile_tables` (**7**) —
+`course_user`, `course_order`, `orders`, `user_roles`, `roles`, `book_course`, `question_result` —
+may be **read as aggregates and never stored** · the remaining **15** are refused in both directions,
+`users` among them, so `lab:health` check 10 is unaffected. Never use the union as a copy check:
+`assertReadable()` and `assertCopyable()` are separate on purpose.
+
+**`question_result` is never mirrored** (ADR-022, 2026-08-26). Its 13.8M answer events are unbounded
+behavioural data that nothing annotates individually, so they are aggregated by pushdown into
+`source_item_stats` and `source_option_stats` (307,382 rows). `source_results` (1.1M attempts) *is*
+mirrored. The rule: **mirror what gets enriched and is bounded; aggregate what is only ever counted
+and is unbounded.** Never propose re-adding `source_answers`.
 
 Never propose creating a MySQL user, issuing a `GRANT`, adding a password, or moving the database
 into Docker. Those were considered and declined.
@@ -100,8 +106,9 @@ evicts the embedding runner on this 16 GB machine.
 
 ## Measured 2026-08-23 (end of P0)
 
-`lab:health` passes **10/10, exit 0, 7.058 s cold** — the baseline not to break, and the instrument
-every P1 phase is checked against · the Lab database is **8,398 kB**, 12 tables · `pg_dump`/`psql` on the
+`lab:health` passes **10/10, exit 0** — the baseline not to break, and the instrument every P1 phase
+is checked against · the Lab database was 8,398 kB at end of P0 and is **~673 MB** with the mirror
+and statistics loaded · `pg_dump`/`psql` on the
 host is 14.18 and aborts against the 17.11 server at connect time, so **all SQL runs in-container** ·
 `/bin/bash` 3.2 does support `set -o pipefail` and `${PIPESTATUS[n]}`.
 

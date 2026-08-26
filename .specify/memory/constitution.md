@@ -1,6 +1,6 @@
 # InjazEdu AI Assessment & Engagement Lab — Constitution
 
-**Version**: 2.2.0 | **Last amended**: 2026-08-25
+**Version**: 2.3.0 | **Last amended**: 2026-08-26
 
 This governs `injazedu-ai-lab`: a **local-first, single-developer** AI laboratory built around the
 production platform `injazedu.co`. It is binding on every spec, plan, task list, and commit here.
@@ -109,19 +109,26 @@ database. No model needs a student's name to analyse a question.
 
 ```text
 categories · courses · chapters · lectures · quizzes · sections
-questions · options · quiz_files · results · question_result
+questions · options · quiz_files · results
 ```
 
 *The profile allowlist* — additionally readable for **aggregate** profiling, never stored:
 
 ```text
 course_user · course_order · orders · user_roles · roles · book_course
+question_result
 ```
 
-These six answer questions the program cannot proceed without — which table actually records
+The first six answer questions the program cannot proceed without — which table actually records
 enrolment, whether `course_user` holds students or trainers — and they are read as counts, never
 copied. Everything outside both lists (`users`, `certificates`, `personal_access_tokens`,
 `social_providers`, and the rest) is refused by name.
+
+`question_result` joined this list on 2026-08-26 (ADR-022). Its 13.8M answer events are unbounded
+behavioural data — they grow with students × time — and nothing in the program annotates an
+individual one. Everything read from them is an aggregate whose size is bounded by the **question**
+count, so they are read as statistics and never mirrored. **Mirror what gets enriched and is
+bounded; aggregate what is only ever counted and is unbounded.**
 
 `results` and `question_result` carry `user_id`: it is **read and never stored** — converted to
 `student_ref` on the way in.

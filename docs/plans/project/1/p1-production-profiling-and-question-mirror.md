@@ -66,7 +66,7 @@ it **copies faithfully**, and it **makes what it copied visible**.
 | Next project | What it needs from P1 |
 |--------------|------------------------|
 | P2 — Duplicate Intelligence | `source_questions.raw_text` + options ordered by `option_index` + stimulus fields on `source_sections` (§8) + `payload_hash` |
-| P3 — Item Statistics | `source_results` and `source_answers` with `student_ref` — **and that is all it needs**; no AI, no embeddings |
+| P3 — Item Statistics | `source_results` with `student_ref`, plus `source_item_stats` and `source_option_stats` — **and that is all it needs**; no AI, no embeddings |
 | P4 — Quality Audit | The question inventory + validation flags (`answer_key_state`, `has_html`, `has_img`) |
 | P5 — Taxonomy & Coverage | Question distribution across `categories` and `courses` — the basis of the coverage map |
 | P9 — Copilot | The fill rate of `description`/`hint` (settles whether any explanation exists to build on at all) |
@@ -157,17 +157,27 @@ is precisely the boundary ADR-021 admits it does not cross.
 produces a comparison, not new prose.
 
 ### Decision 2 — A Complete, Faithful Behavioural Mirror, Chunked and Resumable
+### — REVISED 2026-08-26 (ADR-022): attempts mirrored, answer events aggregated
 
 §16 lists `source_results` and `source_answers` among P1's tables without settling their size.
+(The latter was dropped on 2026-08-26 — see the revision note below.)
 Measurement settles it: **~1.1 million + ~13.8 million rows**.
 
 **Decision:** They are copied in full. `user_id` becomes
 `student_ref = HMAC-SHA256(pepper, user_id)` at the very moment it is read.
 
-**Why:** P3 computes the **discrimination index (point-biserial)**, the correlation between a
-question's score and the test score for each attempt. That requires raw rows at the
-(attempt × question) grain. Any pre-aggregation in P1 either kills P3 or forces a second full ETL
+**Why (as originally written):** P3 computes the **discrimination index (point-biserial)**, the
+correlation between a question's score and the test score for each attempt. That requires raw rows at
+the (attempt × question) grain. Any pre-aggregation in P1 either kills P3 or forces a second full ETL
 pass over 13.8 million rows. And storage is not a constraint: ~1–2 GB against 149 GB free.
+
+**What building it showed (2026-08-26, ADR-022):** the premise was wrong on both halves. The
+point-biserial's corrected-total components (`M₁`, `M₀`, `SD`) come out of the *same* `GROUP BY` as
+the p-value, so the grain is preserved in the statistics rather than in the rows — P3 is not killed.
+And the "second full pass" is a 5-second query against a snapshot that never changes. `source_results`
+(1.1M) is still mirrored in full; `question_result` (13.8M) is not. The deciding argument turned out
+not to be storage but **boundedness**: answer events grow with students × time without limit, while
+the aggregate is bounded by the question count.
 
 **Effect:** Phase 7 is a standalone phase with its own time budget and an explicit resume-cursor
 design.
@@ -308,7 +318,7 @@ selected, which is why it stays valid however far the read list grows.
 
 # 6. Mirror Table Schema
 
-**Fourteen tables.** Every column below is derived from `docs/schema/injazedu-db-schema.md` — not
+**Fifteen tables** (ADR-022: `source_answers` dropped, two stats tables added). Every column below is derived from `docs/schema/injazedu-db-schema.md` — not
 from assumption. Where the plan and the schema disagree, **the schema governs** (constitution).
 
 ## 6.1 Columns Common to Every Mirror Table
@@ -324,8 +334,9 @@ import_run_id      BIGINT    <- which run last wrote this row
 payload_hash       CHAR(64)  <- SHA256, the basis of idempotency
 ```
 
-The logical primary key in every table is (`source_system`, `source_id`) with a UNIQUE constraint,
-and the upsert targets it. **There is no `user_id` column in any of the fourteen tables.**
+The logical primary key in every mirror table is (`source_system`, `source_id`) with a UNIQUE
+constraint, and the upsert targets it; the two derived stats tables use a natural key instead.
+**There is no `user_id` column in any of the fifteen tables.**
 
 ## 6.2 The Tables
 
@@ -480,18 +491,26 @@ duration_estimate_seconds INT  <- updated_at - created_at, explicitly labelled:
 `duration_estimate_seconds` is stored **labelled as an approximation in the column name itself**, so
 it is never later read as a real test duration.
 
-### `source_answers` — from `question_result`
+### `source_item_stats` · `source_option_stats` — derived, not mirrored (ADR-022)
+
+`question_result` is never mirrored. Its 13,776,378 answer events are unbounded behavioural data
+that nothing in the program annotates individually, so they are read as aggregates and stored as two
+derived tables (58,284 + 249,098 rows). `question_result` moved to `profile_tables` on 2026-08-26,
+so `assertCopyable()` refuses it by name.
 
 ```text
-source_id · result_source_id · question_source_id · option_source_id · points
-is_correct_derived BOOL   <- points > 0   (there is no is_correct column in the source — §5)
-source_created_at · source_updated_at
+source_item_stats    question_source_id · scope · n · n_correct · p_value
+                     m1_corrected · m0_corrected · sd_corrected
+                     computed_at · import_run_id · snapshot_id · stats_hash
+
+source_option_stats  question_source_id · option_source_id · scope
+                     chosen_n · chosen_share · is_key
+                     computed_at · import_run_id · snapshot_id · stats_hash
 ```
 
-**A structural limit that must be recorded, not worked around:** `question_result.option_id` is
-**NOT NULL**, so a skipped question **produces no row at all**. Any "question with no answer" in this
-mirror means "not answered or not shown," and the two cannot be told apart. This goes into the
-generated report and onto the console, because P3 will be asked about it.
+Neither carries the common mirror columns — they are not mirrors of source rows. `scope` is
+`active` (attempt not soft-deleted) or `all`; 71% of attempts are soft-deleted, so both are stored
+and the choice is P3's. `r_pbis` is not stored: P1 keeps its inputs, P3 computes the coefficient.
 
 ### `import_runs` · `import_errors`
 
@@ -589,7 +608,7 @@ phase; Phase 6 does, because it derives `answer_key_state`.
 3. Indexes only on what downstream projects will actually use — no more (constitution VII: "Indexes
    are earned"):
    `source_questions(section_source_id)` · `source_question_options(question_source_id)` ·
-   `source_answers(question_source_id)` · `source_answers(result_source_id)` ·
+   `source_option_stats(question_source_id)` ·
    `source_results(quiz_source_id)` · `source_results(student_ref)`.
    **No vector index and no trgm index in this project** — there is nothing to index yet.
 4. A comment in every migration documenting what was not copied and why (price, Zoom data, `user_id`).
@@ -703,8 +722,10 @@ the number of anomalies the profiling run predicted — no more and no fewer.
 1. `source_results` first (~1.1 million): `student_ref` at read time, then `attempt_index` as a second
    pass inside the database (`ROW_NUMBER() OVER (PARTITION BY student_ref, quiz_source_id ORDER BY
    source_created_at)`) — an order of magnitude cheaper than computing it in PHP.
-2. `source_answers` second (~13.8 million): batches via `--chunk` (starting point 10,000 rows), with
-   `resume_cursor` updated after every confirmed batch.
+2. **Revised 2026-08-26 (ADR-022)** — was: `source_answers` (~13.8 million) in `--chunk` batches.
+   Now: `ComputeItemStats` and `ComputeOptionStats` push the aggregation into MySQL and store
+   `source_item_stats` / `source_option_stats` at the `active` and `all` scope. No answer row is
+   copied. Cast to DOUBLE before every ratio — MySQL quantizes to 4 decimal places otherwise.
 3. **`user_id` is read, hashed, and discarded in the same statement.** No intermediate variable holds
    it, no log prints it, no column receives it.
 4. Record the actual elapsed time in `import_runs` — not a gate, but a number P3 needs to size its
@@ -713,8 +734,10 @@ the number of anomalies the profiling run predicted — no more and no fewer.
 **Files:** `apps/lab/app/Jobs/Import/Behaviour/`
 
 **Acceptance criterion:** the behavioural mirror is complete with no gaps
-(`COUNT(source_answers)` = the source count), no column carries `user_id`, and killing the process
-halfway then `--resume` continues from the next batch rather than from the beginning.
+(`SUM(source_item_stats.n)` and `SUM(source_option_stats.chosen_n)` at the `all` scope each equal
+`COUNT(question_result)`, and `COUNT(source_results)` equals its source count), no column carries
+`user_id`, and killing the process halfway then `--resume` continues from the next batch rather than
+from the beginning.
 
 ---
 
@@ -992,7 +1015,8 @@ All of it is its own work.
 
 ```text
 source_results     student_ref · quiz_source_id · total_points · attempt_index
-source_answers     result · question · option · points · is_correct_derived
+source_item_stats   question · scope · n · n_correct · p_value · m1 · m0 · sd
+source_option_stats question · option · scope · chosen_n · chosen_share · is_key
 ```
 
 **And that is all P3 needs** — no AI, no embeddings, no taxonomy. §18 calls it "the highest

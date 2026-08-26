@@ -16,6 +16,12 @@ use Tests\TestCase;
  *    not storing a row;
  *  - a table on neither list is refused for reading, naming it.
  *
+ * Ten copyable and seven profile-only since 2026-08-26 (ADR-022):
+ * `question_result` moved from the first list to the second when the raw
+ * answer mirror was replaced by derived statistics. That move is what makes
+ * "no raw answer rows are stored" structural — the profile-only assertion
+ * below is the guarantee, not a convention.
+ *
  * Runs with the service and the model runtime both stopped: the assertions
  * happen before any connection is opened.
  */
@@ -26,7 +32,7 @@ class SourceTableAllowlistTest extends TestCase
         $reader = app(SourceReader::class);
         $tables = config('lab.source_tables');
 
-        $this->assertCount(11, $tables);
+        $this->assertCount(10, $tables);
 
         foreach ($tables as $table) {
             $reader->assertReadable($table);
@@ -47,6 +53,7 @@ class SourceTableAllowlistTest extends TestCase
             'user_roles' => ['user_roles'],
             'roles' => ['roles'],
             'book_course' => ['book_course'],
+            'question_result' => ['question_result'],
         ];
     }
 

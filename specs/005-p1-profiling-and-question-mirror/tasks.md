@@ -5,7 +5,7 @@ description: "Task list for P1 — Production Profiling & Question Mirror"
 # Tasks: P1 — Production Profiling & Question Mirror
 
 **Input**: `spec.md` (63 FRs, 5 clarifications), `plan.md` (9 groups, 1 open question),
-`data-model.md` (14 tables), `notes.md` (8 Phase 0 findings),
+`data-model.md` (15 tables), `notes.md` (8 Phase 0 findings),
 `contracts/profiling-results.md`
 
 **Tests**: `php artisan test` for the derivation core, the validators, the guardrails, idempotency,
@@ -25,12 +25,12 @@ dependency) · US1 profiling · US2 the mirror · US3 the guarantees · US4 vali
 Phase 1  Setup                                          2 tasks
 Phase 2  Foundational — BLOCKING                        2 tasks   ⚠️ one is an open question
 Phase 3  US1  Profiling            (P1)  🎯 MVP        11 tasks   ← can re-scope everything below
-Phase 4  US2  The mirror           (P2)                50 tasks
+Phase 4  US2  The mirror           (P2)                54 tasks
 Phase 5  US4  Validation           (P4)                 6 tasks   ← plugs into Phase 4's hook
 Phase 6  US3  The guarantees       (P3)                 5 tasks
 Phase 7  US5  The console          (P5)                12 tasks
 Phase 8  Wrap-up                                        6 tasks
-                                                       94 tasks
+                                                       98 tasks
 ```
 
 **Phase order is not story-priority order.** US3 (the guarantees) is P3 by value but most of it
@@ -146,7 +146,7 @@ quotes now exists as data.
 
 ## Phase 4: US2 — A faithful, complete, re-runnable mirror (Priority: P2)
 
-**Goal**: fourteen tables, Production identifiers preserved, soft-deleted rows copied, `user_id`
+**Goal**: fifteen tables, Production identifiers preserved, soft-deleted rows copied, `user_id`
 replaced by `student_ref` at read time, idempotent and resumable.
 
 **Independent test**: run `lab:import` twice against a small fixed set — the second run reports
@@ -160,96 +160,98 @@ comment stating **what was not copied and why**. `sorte_order → sort_order` is
 mapping — `quizzes` spells it correctly and a blanket rename would silently NULL that column
 (notes N4).
 
-- [ ] T016 [P] [US2] `..._create_source_categories_table.php` — `parent_source_id` copied as-is from
+- [X] T016 [P] [US2] `..._create_source_categories_table.php` — `parent_source_id` copied as-is from
   an **INT** `parent_id` against a **BIGINT UNSIGNED** `id` with no FK; expect orphans and cycles.
   Not copied: `meta_*`, `courses_card`, `quizzes_card`, `events_card`, `mobile_image` (FR-009, FR-015)
-- [ ] T017 [P] [US2] `..._create_source_courses_table.php` — metadata only: name, slug, category,
+- [X] T017 [P] [US2] `..._create_source_courses_table.php` — metadata only: name, slug, category,
   status, `start_date`, `exam_date`, the three Telegram fields. **Not copied**: `price`, `discount`,
   `description` (NOT NULL in the source — notes N7), `course_conditions`, `meta_*`, images (FR-012)
-- [ ] T018 [P] [US2] `..._create_source_chapters_table.php` — `title`, `sort_order`, `course_source_id`
-- [ ] T019 [P] [US2] `..._create_source_lectures_table.php` — `topic`, `sort_order`,
+- [X] T018 [P] [US2] `..._create_source_chapters_table.php` — `title`, `sort_order`, `course_source_id`
+- [X] T019 [P] [US2] `..._create_source_lectures_table.php` — `topic`, `sort_order`,
   `chapter_source_id`. **Not copied**: `zoom_start_url`, `zoom_join_url`, `meeting_id`, `passcode`,
   `meeting_type`, `vimeo_id`, `bunny_id`, `youtube_id`, `upload_*`, `host`, `live`, `book` — some are
   credentials, none is about a question (FR-012)
-- [ ] T020 [P] [US2] `..._create_source_quizzes_table.php` — `course_source_id` NULL ⇒ general quiz.
+- [X] T020 [P] [US2] `..._create_source_quizzes_table.php` — `course_source_id` NULL ⇒ general quiz.
   **`user_id` is not copied**; quiz-level attribution is lost and that is accepted (FR-012)
-- [ ] T021 [P] [US2] `..._create_source_sections_table.php` — plus `stimulus_raw`,
+- [X] T021 [P] [US2] `..._create_source_sections_table.php` — plus `stimulus_raw`,
   `stimulus_length`, `has_stimulus`, `is_long_stimulus`, `questions_count` (FR-013)
-- [ ] T022 [P] [US2] `..._create_source_questions_table.php` — plus `correct_option_count`,
+- [X] T022 [P] [US2] `..._create_source_questions_table.php` — plus `correct_option_count`,
   `answer_key_state` **defaulting to `pending`**, `options_count`, `stem_char_length`, `has_html`,
   `has_img`, `is_stem_image_only`, `requires_media_review`, `source_origin` defaulting to `unknown`.
   Index on `section_source_id` (FR-014, FR-034)
-- [ ] T023 [P] [US2] `..._create_source_question_options_table.php` — `source_order`, `option_index`,
+- [X] T023 [P] [US2] `..._create_source_question_options_table.php` — `source_order`, `option_index`,
   `is_correct_derived`. Index on `question_source_id` (FR-014, FR-017)
-- [ ] T024 [P] [US2] `..._create_source_media_table.php` — `type`, `path` (nullable in the source),
+- [X] T024 [P] [US2] `..._create_source_media_table.php` — `type`, `path` (nullable in the source),
   `attach_level`, `path_unverified`. Comment: `quiz_files` has **no soft delete**, so
   `source_deleted_at` here is permanently NULL (notes N3, FR-035)
-- [ ] T025 [P] [US2] `..._create_source_results_table.php` — `student_ref CHAR(64)`, `attempt_index`,
+- [X] T025 [P] [US2] `..._create_source_results_table.php` — `student_ref CHAR(64)`, `attempt_index`,
   `duration_estimate_seconds`, `total_points`. Indexes on `quiz_source_id` and `student_ref`.
   **No `user_id` column** (FR-011, FR-014, FR-037)
-- [ ] T026 [P] [US2] `..._create_source_answers_table.php` — `result_source_id`,
+- [X] T026 [P] [US2] ~~`..._create_source_answers_table.php`~~ **— dropped 2026-08-26 (ADR-022),
+  replaced by `source_item_stats` and `source_option_stats`; see T059c.** As originally built:
+  `result_source_id`,
   `question_source_id`, `option_source_id`, `points`, `is_correct_derived`. Indexes on
   `question_source_id` and `result_source_id`. Comment: `question_result` has no soft delete, and
   `results` does — so excluding deleted attempts must go through `source_results` (notes N3)
-- [ ] T027 [P] [US2] `..._create_import_runs_table.php` — `snapshot_id`, `kind`, `started_at`,
+- [X] T027 [P] [US2] `..._create_import_runs_table.php` — `snapshot_id`, `kind`, `started_at`,
   `finished_at`, `status`, `rows_read/inserted/updated/unchanged`, `error_count`, `elapsed_seconds`,
   `resume_cursor` JSONB, `ran_via` (FR-028, FR-041)
-- [ ] T028 [P] [US2] `..._create_import_errors_table.php` — `import_run_id`, `source_table`,
+- [X] T028 [P] [US2] `..._create_import_errors_table.php` — `import_run_id`, `source_table`,
   `source_id`, `severity`, `code`, `message`, `context` JSONB. **Append-only, scoped by run, never
   deleted or rewritten** — state this in the migration comment, because it is the property the
   console's card design depends on (FR-027)
-- [ ] T029 [US2] `apps/lab/app/Models/` — twelve `Source*` models plus `ImportRun` and `ImportError`,
+- [X] T029 [US2] `apps/lab/app/Models/` — twelve `Source*` models plus `ImportRun` and `ImportError`,
   with casts for the JSONB and boolean columns and the relationships in `data-model.md`
-- [ ] T030 [US2] Run `php artisan migrate:fresh`, then `php artisan test --filter=NoPii` — the
-  rewritten assertion must pass over the complete fourteen-table schema (FR-054, SC-009)
+- [X] T030 [US2] Run `php artisan migrate:fresh`, then `php artisan test --filter=NoPii` — the
+  rewritten assertion must pass over the complete fifteen-table schema (FR-054, SC-009)
 
 ### The derivation core (no database — test before it touches a row)
 
-- [ ] T031 [P] [US2] `apps/lab/app/Support/Derive/AnswerKeyDeriver.php` — `correct_option_ids` from
+- [X] T031 [P] [US2] `apps/lab/app/Support/Derive/AnswerKeyDeriver.php` — `correct_option_ids` from
   live options with `points > 0`; `correct_option_count` is mechanical and returned always;
   `answer_key_state` is an **interpretation** and is returned as `pending` until the policy from
   T015 is configured (FR-016)
-- [ ] T032 [P] [US2] `apps/lab/app/Support/Derive/OptionIndexDeriver.php` —
+- [X] T032 [P] [US2] `apps/lab/app/Support/Derive/OptionIndexDeriver.php` —
   `` ORDER BY `order` ASC, id ASC ``, never abbreviated. `order` is a reserved word in MySQL:
   always backticks (FR-017)
-- [ ] T033 [P] [US2] `apps/lab/app/Support/Derive/PayloadHasher.php` — SHA256 over key-sorted JSON.
+- [X] T033 [P] [US2] `apps/lab/app/Support/Derive/PayloadHasher.php` — SHA256 over key-sorted JSON.
   **One mechanism, one exception**: every table hashes its own copied columns; `source_questions`
   uses §16's definition verbatim — `name`, `description`, `hint`, options by `option_index` with
   `name` and `points` (FR-018)
-- [ ] T034 [P] [US2] `apps/lab/app/Support/Derive/StudentRefHasher.php` — `HMAC-SHA256(pepper,
+- [X] T034 [P] [US2] `apps/lab/app/Support/Derive/StudentRefHasher.php` — `HMAC-SHA256(pepper,
   user_id)`, reading the pepper from config. **Throws on an empty or missing pepper** (FR-019)
-- [ ] T035 [P] [US2] `apps/lab/tests/Unit/Derive/AnswerKeyDeriverTest.php` — 1, 0 and >1 correct;
+- [X] T035 [P] [US2] `apps/lab/tests/Unit/Derive/AnswerKeyDeriverTest.php` — 1, 0 and >1 correct;
   soft-deleted options excluded; `pending` returned while no policy is configured (FR-021)
-- [ ] T036 [P] [US2] `apps/lab/tests/Unit/Derive/OptionIndexDeriverTest.php` — **the `order` tie
+- [X] T036 [P] [US2] `apps/lab/tests/Unit/Derive/OptionIndexDeriverTest.php` — **the `order` tie
   case is mandatory** (query 5): identical `order` values resolve by `id`, and the result is stable
   across repeated runs. This is the case that breaks everything silently (FR-021)
-- [ ] T037 [P] [US2] `apps/lab/tests/Unit/Derive/PayloadHasherTest.php` — same input ⇒ same hash;
+- [X] T037 [P] [US2] `apps/lab/tests/Unit/Derive/PayloadHasherTest.php` — same input ⇒ same hash;
   re-ordering the input options does **not** change it; changing an option's text does; and a
   non-question table hashes its own columns (FR-018, FR-021)
-- [ ] T038 [P] [US2] `apps/lab/tests/Unit/Derive/StudentRefHasherTest.php` — stable for the same
+- [X] T038 [P] [US2] `apps/lab/tests/Unit/Derive/StudentRefHasherTest.php` — stable for the same
   input, different for a different pepper, and **throws on an empty pepper** (FR-019, FR-021)
 
 ### The ETL structure
 
-- [ ] T039 [US2] `apps/lab/app/Support/Import/Upsert.php` — upsert on
+- [X] T039 [US2] `apps/lab/app/Support/Import/Upsert.php` — upsert on
   (`source_system`, `source_id`). Matching `payload_hash` ⇒ `rows_unchanged++` and **no write**;
   differing ⇒ update and `rows_updated++`; unseen ⇒ insert. **`SourceReader::assertCopyable($table)`
   is called here, at the single write site every job funnels through** (FR-023, FR-026)
-- [ ] T040 [US2] `apps/lab/app/Support/Import/ResumeCursor.php` — records (table, last confirmed
+- [X] T040 [US2] `apps/lab/app/Support/Import/ResumeCursor.php` — records (table, last confirmed
   `source_id`) into `import_runs.resume_cursor`, updated **after each confirmed batch** — not per
   row, and never before the batch commits (FR-025)
-- [ ] T041 [US2] `apps/lab/app/Support/Import/ImportErrorRecorder.php` — writes an anomaly with
+- [X] T041 [US2] `apps/lab/app/Support/Import/ImportErrorRecorder.php` — writes an anomaly with
   code, severity, table, source id, message and context, and **returns so the batch continues**. A
   silent `try/catch` is a defect. `user_id` must never reach `context`: hashing happens at read
   time, before any error path can see it (FR-020, FR-027)
-- [ ] T042 [US2] `apps/lab/app/Support/Import/ImportRunRecorder.php` — creates the run row, links
+- [X] T042 [US2] `apps/lab/app/Support/Import/ImportRunRecorder.php` — creates the run row, links
   every written row via `import_run_id`, and records counts, `elapsed_seconds` and `ran_via` on
   completion (FR-022, FR-028, FR-041)
-- [ ] T043 [US2] `apps/lab/app/Console/Commands/LabImport.php` — `lab:import` with `--kind`,
+- [X] T043 [US2] `apps/lab/app/Console/Commands/LabImport.php` — `lab:import` with `--kind`,
   `--resume`, `--chunk`, `--queue`. **Synchronous by default** with progress and a real exit code;
   `--queue` dispatches the *same* job classes to the `database` queue. Two implementations is a
   defect — only one of them would be the tested one (FR-022, FR-029)
-- [ ] T044 [US2] `LabImport --help` — the operating instructions: what each flag does, what
+- [X] T044 [US2] `LabImport --help` — the operating instructions: what each flag does, what
   `--resume` picks up, and what each error code means, read from the enum. **This is the import's
   documentation; no runbook is written** (FR-030)
 
@@ -259,44 +261,66 @@ Each job reads through `SourceReader`, derives with the Phase 4 core, and writes
 upsert. **Soft-deleted rows are copied** with `source_deleted_at`; exclusion is an analysis-time
 decision made somewhere else (FR-032).
 
-- [ ] T045 [US2] `apps/lab/app/Jobs/Import/Bank/ImportCategories.php` — `parent_id` copied as-is,
+- [X] T045 [US2] `apps/lab/app/Jobs/Import/Bank/ImportCategories.php` — `parent_id` copied as-is,
   never repaired (FR-031, FR-033)
-- [ ] T046 [US2] `apps/lab/app/Jobs/Import/Bank/ImportCourses.php` — permitted columns only; a
+- [X] T046 [US2] `apps/lab/app/Jobs/Import/Bank/ImportCourses.php` — permitted columns only; a
   review step confirms price and the marketing fields were not copied (FR-012)
-- [ ] T047 [US2] `apps/lab/app/Jobs/Import/Bank/ImportChapters.php`
-- [ ] T048 [US2] `apps/lab/app/Jobs/Import/Bank/ImportLectures.php`
-- [ ] T049 [US2] `apps/lab/app/Jobs/Import/Bank/ImportQuizzes.php`
-- [ ] T050 [US2] `apps/lab/app/Jobs/Import/Bank/ImportSections.php` — computes `stimulus_raw`,
+- [X] T047 [US2] `apps/lab/app/Jobs/Import/Bank/ImportChapters.php`
+- [X] T048 [US2] `apps/lab/app/Jobs/Import/Bank/ImportLectures.php`
+- [X] T049 [US2] `apps/lab/app/Jobs/Import/Bank/ImportQuizzes.php`
+- [X] T050 [US2] `apps/lab/app/Jobs/Import/Bank/ImportSections.php` — computes `stimulus_raw`,
   `stimulus_length`, `has_stimulus`, `is_long_stimulus`. **`sections.description` is absent from
   `$fillable` but the column exists and may be populated — read it, never assume it is empty**; it is
   the whole substance of §8 (FR-013)
-- [ ] T051 [US2] `apps/lab/app/Jobs/Import/Bank/ImportQuestions.php` — `raw_text` unmodified, plus
+- [X] T051 [US2] `apps/lab/app/Jobs/Import/Bank/ImportQuestions.php` — `raw_text` unmodified, plus
   `has_html`, `has_img`, `is_stem_image_only`, `stem_char_length`, `options_count`,
   `correct_option_count` and `payload_hash`. **`answer_key_state` stays `pending`** (FR-034, FR-061)
-- [ ] T052 [US2] `apps/lab/app/Jobs/Import/Bank/ImportQuestionOptions.php` — `option_index` and
+- [X] T052 [US2] `apps/lab/app/Jobs/Import/Bank/ImportQuestionOptions.php` — `option_index` and
   `is_correct_derived` (FR-017)
-- [ ] T053 [US2] `apps/lab/app/Jobs/Import/Bank/ImportMedia.php` — both attachment levels,
+- [X] T053 [US2] `apps/lab/app/Jobs/Import/Bank/ImportMedia.php` — both attachment levels,
   `path_unverified = true` on every row (FR-035)
-- [ ] T054 [US2] Verify each table's copied count equals the count query 1–12 recorded in T014,
+- [X] T054 [US2] Verify each table's copied count equals the count query 1–12 recorded in T014,
   **soft-deleted rows included**, and that every `source_id` is unchanged (FR-036, SC-005)
 
 ### Behavioural ETL — T004 must be confirmed first
 
-- [ ] T055 [US2] `apps/lab/app/Jobs/Import/Behaviour/ImportResults.php` — ~1.1 M rows.
+- [X] T055 [US2] `apps/lab/app/Jobs/Import/Behaviour/ImportResults.php` — ~1.1 M rows.
   **`user_id` is read, hashed and discarded in the same statement**: no intermediate variable holds
   it, no log prints it, no column receives it (FR-020, FR-037)
-- [ ] T056 [US2] `apps/lab/app/Jobs/Import/Behaviour/DeriveAttemptIndex.php` — a second pass in
+- [X] T056 [US2] `apps/lab/app/Jobs/Import/Behaviour/DeriveAttemptIndex.php` — a second pass in
   **Postgres**: `ROW_NUMBER() OVER (PARTITION BY student_ref, quiz_source_id ORDER BY
   source_created_at)`. An order of magnitude cheaper than 1.1 M PHP iterations (FR-038)
-- [ ] T057 [US2] `ImportResults` — `duration_estimate_seconds` from `updated_at − created_at`,
+- [X] T057 [US2] `ImportResults` — `duration_estimate_seconds` from `updated_at − created_at`,
   labelled an approximation **in the column name itself** so it is never read as a real duration
   (FR-039)
-- [ ] T058 [US2] `apps/lab/app/Jobs/Import/Behaviour/ImportAnswers.php` — ~13.8 M rows in `--chunk`
-  batches (10,000 start), `resume_cursor` updated after each confirmed batch,
-  `is_correct_derived = points > 0` (FR-040)
-- [ ] T059 [US2] Verify `COUNT(source_answers)` equals the source count exactly with no gap, and
-  record `elapsed_seconds` — a number P3 needs to size its own batches, **not a gate** (FR-041,
-  SC-006)
+- [X] T058 [US2] **Superseded by ADR-022 — no raw answer mirror.** Was `ImportAnswers.php`
+  (~13.8 M rows chunked). Delivered instead as
+  `apps/lab/app/Jobs/Import/Behaviour/ComputeItemStats.php` and `ComputeOptionStats.php`: the
+  aggregate is pushed into MySQL and stored in `source_item_stats` / `source_option_stats` at both
+  the `active` and `all` scope. `question_result` moved to `profile_tables`, so `assertCopyable()`
+  refuses it by name. **Cast to DOUBLE before every ratio and mean** — MySQL quantizes `AVG()` over
+  an integer expression and decimal division to 4 decimal places (FR-040)
+- [X] T059 [US2] Verify the statistics reconcile exactly to the source — `SUM(n)` and
+  `SUM(chosen_n)` at the `all` scope each equal `COUNT(question_result)` — and record
+  `elapsed_seconds`, a number P3 needs to size its own batches, **not a gate** (FR-041, SC-006)
+
+### The batched write path and the derived statistics (ADR-022)
+
+- [X] T059a [US2] `apps/lab/app/Support/Import/BatchUpsert.php` — one
+  `INSERT … ON CONFLICT … WHERE hash IS DISTINCT FROM … RETURNING (xmax = 0)` per batch, replacing
+  the per-row `SELECT`-then-write `Upsert`. Same three outcomes, measured 59× faster. `run()` guards
+  mirrors with `assertCopyable()`; `runDerived()` takes an explicit conflict key for the stats
+  tables, which copy nothing (FR-023, FR-026, FR-041)
+- [X] T059b [US2] Convert the nine bank jobs and `ImportResults` to the batched path, streaming with
+  `cursor()` and flushing per batch. Delete `Upsert` so exactly one write path remains for the copy
+  guard to protect. Proven semantics-preserving by a re-run reporting **0 inserted, 0 updated,
+  174,119 unchanged** (FR-024)
+- [X] T059c [US2] Migrations for `source_item_stats` and `source_option_stats`, plus the drop of
+  `source_answers` — run only after the statistics were cross-checked against it (ADR-022)
+- [X] T059d [US2] `apps/lab/tests/Feature/BatchUpsertIdempotencyTest.php`,
+  `StatsReproducibilityTest.php`, `NoRawAnswerRowsTest.php`,
+  `SourceResultsCompletenessTest.php` — idempotency, reproducibility from raw source rows
+  (constitution §V), the structural absence of answer rows, and mirror completeness (SC-006, SC-007)
 
 ### The backfill passes — one idempotent second-pass pattern, three uses
 
@@ -314,8 +338,9 @@ decision made somewhere else (FR-032).
 
 - [ ] T063 [P] [US2] `apps/lab/tests/Feature/ImportIdempotencyTest.php` — two consecutive runs
   against a fixed set: the second reports `rows_inserted = 0`, `rows_updated = 0`, `error_count = 0`,
-  and `rows_unchanged` equals the mirror. Cover a bank table **and** a behavioural table (FR-024,
-  SC-007)
+  and `rows_unchanged` equals the mirror. Cover a bank table **and** `source_results` (the one
+  behavioural table still mirrored). The write path itself is already covered by
+  `BatchUpsertIdempotencyTest` (T059d); this is the end-to-end command-level version (FR-024, SC-007)
 - [ ] T064 [P] [US2] `apps/lab/tests/Feature/ImportResumeTest.php` — interrupt mid-batch, then
   `--resume`: continues from the cursor, final counts match, **no row exists twice and none is
   missing**. Test the interruption in practice, not in theory (FR-025, SC-008)
@@ -504,7 +529,8 @@ Phase 3 ‖ Phase 4's T016–T038   profiling does not block the schema or the c
 Arabic normalization · clean_text · search_text     ← P2
 Any similarity hash, embedding, vector, neighbour   ← P2
 Any duplicate detection, clustering, or judgment    ← P2
-Any item statistic (p-value, discrimination)        ← P3
+Discrimination (r_pbis) and every flagging rule     ← P3
+(p-value and the r_pbis inputs ARE computed here — ADR-022)
 Any classification, taxonomy, or coverage map       ← P5
 Any LLM call whatsoever                             ← P2 and beyond
 Any vector or trigram index                         ← earned, not assumed
@@ -529,7 +555,7 @@ open question for `plan.md` (Principle I).
 | 1 | — | 2 | Configuration and the report directory |
 | 2 | — | 2 | The no-PII rewrite (open question) and the pepper confirmation |
 | 3 | US1 (P1) 🎯 | 11 | Eighteen queries run and persisted; the three findings answered |
-| 4 | US2 (P2) | 50 | Fourteen tables, the derivation core, idempotent and resumable ETL |
+| 4 | US2 (P2) | 54 | Fifteen tables, the derivation core, idempotent and resumable ETL, derived statistics |
 | 5 | US4 (P4) | 6 | Thirteen codes, the batch never stopping, profiling ↔ mirror agreement |
 | 6 | US3 (P3) | 5 | The guarantees as tests, including the removed-guard failure |
 | 7 | US5 (P5) | 12 | The Arabic console, every number a link |

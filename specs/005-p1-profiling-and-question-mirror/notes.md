@@ -68,11 +68,13 @@ Two problems, in opposite directions:
 | Source table | `deleted_at`? | Mirror consequence |
 |---|---|---|
 | `quiz_files` | **No** (§9 item 5 — deletion is permanent) | `source_media.source_deleted_at` is structurally always NULL |
-| `question_result` | **No** | `source_answers.source_deleted_at` is structurally always NULL |
+| `question_result` | **No** | n/a since 2026-08-26 — answer events are aggregated, not mirrored (ADR-022) |
 
 `results` **does** carry `deleted_at`, and `question_result` does not — so a soft-deleted attempt
-keeps its answer rows. **Analysis-time exclusion must go through `source_results`**;
-`source_answers` alone cannot tell you the attempt was deleted. P3 needs to know this.
+keeps its answer rows, and an answer row alone cannot tell you its attempt was deleted. **Exclusion
+must go through `results`.** This is exactly why the derived statistics are stored at two scopes:
+`active` joins `results` and filters `deleted_at IS NULL`, `all` does not. 71% of attempts are
+soft-deleted, so the two differ substantially and P3 must say which it means.
 
 `quiz_files.path` is also nullable, so a media row can exist with no path at all — on top of
 `path_unverified` (FR-035), which is about a path that exists but may point nowhere.

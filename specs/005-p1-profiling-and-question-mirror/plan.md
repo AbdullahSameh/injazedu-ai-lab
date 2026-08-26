@@ -10,7 +10,7 @@ phases, delivered as this one spec (§7.1)
 
 Measure the bank, mirror it faithfully, make it visible. Two commands and one console:
 `lab:profile` runs the eighteen §6 queries **inside the three read-only layers** and persists the
-result as data rather than prose; `lab:import` builds fourteen tables idempotently and resumably,
+result as data rather than prose; `lab:import` builds fifteen tables idempotently and resumably,
 converting `user_id` to `student_ref` at the moment of reading; a Filament console makes every
 number clickable down to the questions. Nothing is cleaned, normalized, or judged — that is P2.
 
@@ -39,7 +39,7 @@ Four things shape the approach:
 (MySQL 9.1 dialect for the pack, PostgreSQL 17 for the mirror and the `attempt_index` window)
 **Primary dependencies**: none new. Laravel 13.26.1, Filament 5.7.6, the existing `SourceReader`,
 `ReadOnlyViolation`, `SourceTableNotAllowed`, `HealthMatrix`
-**Storage**: PostgreSQL 17 + pgvector on `127.0.0.1:5433` — **+14 tables, ~1–2 GB** on top of
+**Storage**: PostgreSQL 17 + pgvector on `127.0.0.1:5433` — **+15 tables, ~670 MB** on top of
 today's 8,398 kB · MySQL 9.1.0 on `127.0.0.1:3306`, read-only by application, snapshot fixed
 2026-08-07
 **Testing**: `php artisan test` for derivations, guards, validators, idempotency, resume and
@@ -64,7 +64,7 @@ snapshot's age or on a memory number
 - [x] **No PII into the Lab** — `student_ref` is derived at read time and `user_id` is discarded in
       the same statement. The schema assertion is the backstop and is **strengthened** here: it gains
       `user_id` and four name-shaped columns it never checked (N2).
-- [x] **Laravel owns migrations** — fourteen, in dependency order (ADR-013). All derivation is
+- [x] **Laravel owns migrations** — fifteen, in dependency order (ADR-013). All derivation is
       deterministic PHP and SQL. **No AI in this feature at all**, so the structured-output rule has
       nothing to bind to.
 - [x] **Tests are the targeted kind** — four derivation units, thirteen validator units, the four
@@ -139,7 +139,7 @@ is — the mirror schema shape — is pinned in `data-model.md`, which is where 
 | Artefact | Why it earns its place | |
 |---|---|---|
 | [notes.md](./notes.md) | Eight findings from reading P0's code and the measured schema. N1 (guard 2 rejects the query files) and N2 (the no-PII test is wrong in both directions) each change what gets written, and N3–N7 stop a migration from being written against the plan's prose instead of the schema. | ✅ |
-| [data-model.md](./data-model.md) | Fourteen tables, checked column-by-column against the schema. The one artefact the constitution says is expensive to reverse once data exists. | ✅ |
+| [data-model.md](./data-model.md) | Fifteen tables, checked column-by-column against the schema. The one artefact the constitution says is expensive to reverse once data exists. | ✅ |
 | [contracts/profiling-results.md](./contracts/profiling-results.md) | **P2, P3, P4, P5 and P9 are the second party.** §14.3 forbids them to re-query the source, so the JSON they read instead needs a fixed shape — decided now, before there is data in it. | ✅ |
 | ~~quickstart.md~~ | Skipped: `README.md`'s P1 section **is** the quickstart and is a deliverable (FR-059). A second copy would drift. | ❌ |
 | ~~a new runbook / ADR / acceptance record~~ | Skipped by policy. `lab:import --help` carries the operating instructions (FR-030); that is the import's documentation. | ❌ |
@@ -149,11 +149,11 @@ is — the mirror schema shape — is pinned in `data-model.md`, which is where 
 | Group | Covers | Depends on | Touches the source? |
 |---|---|---|---|
 | **A — Profiling** | `source_snapshots` migration · `LabProfile` · header parsing · report generation · declaration test | Nothing | **Reads all 17 allowlisted tables.** Writes nothing |
-| **B — Schema** | 13 remaining migrations · 14 models · the rewritten no-PII test | Nothing (parallel with A) | No |
+| **B — Schema** | the mirror migrations · models · the rewritten no-PII test | Nothing (parallel with A) | No |
 | **C — Derivation core** | `AnswerKeyDeriver` · `OptionIndexDeriver` · `PayloadHasher` · `StudentRefHasher` + units | Nothing (parallel with A, B) | No |
 | **D — ETL structure** | `LabImport` · upsert · resume cursor · `ImportErrorCode` · idempotency and resume tests | B, C | No (skeleton only) |
 | **E — Bank ETL** | 9 table jobs in dependency order · stimulus and question flags · the 13 validators | D, **and A's run** for the count check | Reads the 11 copyable tables |
-| **F — Behavioural ETL** | `source_results` → `attempt_index` window → `source_answers` chunked | E · **the pepper (item B)** | Reads `results`, `question_result` |
+| **F — Behavioural ETL** | `source_results` mirrored → `attempt_index` window → `source_item_stats` + `source_option_stats` by pushdown (ADR-022) | E · **the pepper (item B)** | Reads `results` (copyable), `question_result` (**profile-only**) |
 | **G — Backfills** | `answer_key_state` (after FR-061) · `questions_count` · `requires_media_review` | E · **the multi-key decision** for the first | No |
 | **H — Console** | Panel to Arabic/RTL · resources · inventory cards · errors screen · snapshot header | E (F for the answer-count cards) | No |
 | **I — Guards & wrap-up** | Copy guard · reproducibility · README · §13 note · CLAUDE.md/AGENTS.md | All | No |
@@ -202,6 +202,10 @@ Hard-forbid `user_id`, `email`, `phone`, `mobile`, `id_number`, `national_id`,
 `username`, `first_name`, `last_name`, and `full_name` on every non-framework Lab table.
 
 Also forbid `name` on behavioural tables only: `source_results` and `source_answers`.
+
+**Superseded in part, 2026-08-26 (ADR-022):** `source_answers` no longer exists. The behavioural
+list is now `source_results`, `source_item_stats` and `source_option_stats` — the same rule applied
+to the tables that replaced it. The decision above is otherwise unchanged.
 
 **Blocking prerequisite, not a question**: `STUDENT_REF_PEPPER` confirmed stored outside Git **and
 off this machine** before group F runs. Already decided (spec Dependencies, P1 plan §8 item B) — it

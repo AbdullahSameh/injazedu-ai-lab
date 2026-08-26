@@ -13,7 +13,8 @@ use Tests\TestCase;
  * `name` is allowed on content/metadata mirror tables — `source_categories`,
  * `source_courses`, `source_quizzes`, `source_sections` — because a category
  * or quiz title is not a person. It is hard-forbidden on behavioural tables
- * (`source_results`, `source_answers`), where it has no legitimate meaning.
+ * (`source_results` and the two derived statistics tables), where it has no
+ * legitimate meaning.
  * `user_id` and nine other identity-shaped columns are hard-forbidden on
  * every non-framework table — `user_id` is the column FR-011 exists for and
  * the original test never checked it at all.
@@ -42,8 +43,15 @@ class NoPiiInLabSchemaTest extends TestCase
         'username', 'first_name', 'last_name', 'full_name',
     ];
 
-    /** Behavioural tables where a free-text `name` has no legitimate meaning. */
-    private const BEHAVIOURAL_TABLES = ['source_results', 'source_answers'];
+    /**
+     * Behavioural tables where a free-text `name` has no legitimate meaning.
+     * `source_answers` was dropped 2026-08-26 (ADR-022) and replaced by the
+     * two derived statistics tables, which are listed here for the same
+     * reason: they hold counts about questions, never anything nameable.
+     */
+    private const BEHAVIOURAL_TABLES = [
+        'source_results', 'source_item_stats', 'source_option_stats',
+    ];
 
     protected function setUp(): void
     {

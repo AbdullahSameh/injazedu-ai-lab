@@ -1,7 +1,7 @@
 # P1 Profiling Report
 
 **snapshot_taken_at**: 2026-08-07
-**run_at**: 2026-08-25T23:24:38Z
+**run_at**: 2026-08-26T00:30:23Z
 **mysql_version**: 9.1.0
 **source_database_size_mb**: 2165.98
 
@@ -11,7 +11,7 @@
 - tables_read: questions
 - allowlist: copy
 - row_count: 1
-- duration_ms: 43
+- duration_ms: 111
 
 | total | active | soft_deleted |
 | --- | --- | --- |
@@ -23,7 +23,7 @@
 - tables_read: questions, options
 - allowlist: copy
 - row_count: 9
-- duration_ms: 191
+- duration_ms: 232
 
 | opt_count | questions |
 | --- | --- |
@@ -43,7 +43,7 @@
 - tables_read: questions, options
 - allowlist: copy
 - row_count: 4
-- duration_ms: 121
+- duration_ms: 178
 
 | correct_count | questions |
 | --- | --- |
@@ -58,7 +58,7 @@
 - tables_read: options
 - allowlist: copy
 - row_count: 11
-- duration_ms: 28
+- duration_ms: 33
 
 | points | options_count |
 | --- | --- |
@@ -80,7 +80,7 @@
 - tables_read: options
 - allowlist: copy
 - row_count: 1
-- duration_ms: 43
+- duration_ms: 132
 
 | questions_with_order_ties |
 | --- |
@@ -104,7 +104,7 @@
 - tables_read: quizzes
 - allowlist: copy
 - row_count: 2
-- duration_ms: 9
+- duration_ms: 12
 
 | kind | quizzes | active |
 | --- | --- | --- |
@@ -117,7 +117,7 @@
 - tables_read: quizzes, sections, questions
 - allowlist: copy
 - row_count: 43
-- duration_ms: 30
+- duration_ms: 40
 
 | questions_per_quiz | quizzes |
 | --- | --- |
@@ -171,7 +171,7 @@
 - tables_read: questions
 - allowlist: copy
 - row_count: 1
-- duration_ms: 40
+- duration_ms: 45
 
 | total | has_img_tag | has_any_html | long_stems | longest_stem |
 | --- | --- | --- | --- | --- |
@@ -183,7 +183,7 @@
 - tables_read: quiz_files
 - allowlist: copy
 - row_count: 2
-- duration_ms: 73
+- duration_ms: 13
 
 | type | at_question | at_section | total |
 | --- | --- | --- | --- |
@@ -196,7 +196,7 @@
 - tables_read: questions
 - allowlist: copy
 - row_count: 1
-- duration_ms: 54
+- duration_ms: 61
 
 | duplicate_groups | redundant_questions |
 | --- | --- |
@@ -220,7 +220,7 @@
 - tables_read: question_result
 - allowlist: copy
 - row_count: 1
-- duration_ms: 5364
+- duration_ms: 6317
 
 | answers | results | questions_with_data |
 | --- | --- | --- |
@@ -232,7 +232,7 @@
 - tables_read: question_result
 - allowlist: copy
 - row_count: 4
-- duration_ms: 6015
+- duration_ms: 4448
 
 | bucket | questions |
 | --- | --- |
@@ -247,7 +247,7 @@
 - tables_read: course_user, course_order, orders
 - allowlist: profile-only
 - row_count: 2
-- duration_ms: 209
+- duration_ms: 177
 
 | src | rows_ | users_ | courses_ |
 | --- | --- | --- | --- |
@@ -260,7 +260,7 @@
 - tables_read: course_user, user_roles, roles
 - allowlist: profile-only
 - row_count: 2
-- duration_ms: 7
+- duration_ms: 5
 
 | role | users_in_course_user |
 | --- | --- |
@@ -273,7 +273,7 @@
 - tables_read: courses
 - allowlist: copy
 - row_count: 1
-- duration_ms: 4
+- duration_ms: 6
 
 | courses | has_channel | has_group | has_private |
 | --- | --- | --- | --- |

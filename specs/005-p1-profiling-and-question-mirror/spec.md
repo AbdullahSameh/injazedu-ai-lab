@@ -23,7 +23,7 @@ single PII column and without one row written back to the source.**
 |---|---|
 | `php artisan lab:profile` | The eighteen §6 queries run **inside the three read-only layers**, and their results are persisted as data, not pasted into prose. |
 | The measurement as a record | `source_snapshots.profiling_results` (JSONB) is authoritative; `docs/reports/p1-profiling.md` is **generated** from it and never hand-maintained. |
-| Fourteen mirror tables | The question bank and the behavioural history, in Lab Postgres, with Production identifiers preserved and no `user_id` anywhere. |
+| Fifteen Lab tables | The question bank and the behavioural history, in Lab Postgres, with Production identifiers preserved and no `user_id` anywhere. Answer events are held as statistics, not rows (ADR-022). |
 | A tested derivation core | Correct-answer state, option index, payload hash, student ref — proven before they touch a row. |
 | `php artisan lab:import` | Idempotent, chunked, resumable. Re-running against the fixed snapshot changes nothing. |
 | Thirteen validation checks | Every anomaly lands in `import_errors` with a code and a severity. Nothing is repaired, nothing is swallowed. |
@@ -72,7 +72,7 @@ propose automatic corrections, in this project.
 | Three write-blocking layers, each blocking alone | Delivered (002), unchanged by the allowlist split |
 | `SourceReader` with `assertReadable()` / `assertCopyable()` as **separate** methods | Delivered (002/004) — the union is never a copy check |
 | `source_tables` (11 copyable) · `profile_tables` (6 read-only) · 15 refused by name | Delivered (004) |
-| PostgreSQL 17 + pgvector + pg_trgm on 5433 | Delivered (001) — ready for the fourteen tables |
+| PostgreSQL 17 + pgvector + pg_trgm on 5433 | Delivered (001) — ready for the fifteen tables |
 | Laravel 13 + Filament 5 on PHP 8.4; Laravel owns every migration (ADR-013) | Delivered (001) |
 | `database` queue driver (ADR-011) | Delivered (001) — ready for ETL batches |
 | `sql/profiling/` — eighteen numbered files, each declaring the tables it reads | Delivered (004), **never executed** |
@@ -120,6 +120,13 @@ query happened to select, which is why it stays valid however far the read list 
 - Q: Does `lab:import` run inline or dispatch to the queue? → A: Synchronous by default — real progress and a real exit code — with `--queue` to dispatch instead for the ~13.8 M row behavioural run. Both paths share the same job classes, cursor and upsert.
 - Q: Where does the Arabic RTL console live relative to P0's existing Filament panel? → A: One panel, Arabic and RTL globally; the existing health screen keeps its English technical output unchanged inside the RTL shell, since check names and values are technical identifiers.
 
+### Session 2026-08-26
+
+- Q: `results.user_id` is NULL on 71% of rows, and `source_results.student_ref` was NOT NULL. What should those rows carry? → A: `student_ref` is nullable and stays NULL. There is no id to hash, and a sentinel would falsely correlate thousands of unrelated anonymous attempts as one identity. `DeriveAttemptIndex` excludes them, so they keep a permanent NULL `attempt_index` — "this student's Nth attempt" is undefined without a student.
+- Q: Should the 13.8M answer events be mirrored row-for-row? → A: No (ADR-022). They are unbounded behavioural data that nothing annotates individually, so they are aggregated by pushdown into `source_item_stats` and `source_option_stats`, and `question_result` moves to `profile_tables` so the copy guard refuses it by name. Attempts (`source_results`) stay mirrored.
+- Q: Should the statistics count soft-deleted attempts? → A: Both, as a `scope` row discriminator (`active` and `all`). 71% of attempts are soft-deleted, so the two bases differ substantially and the choice belongs to P3 with real numbers on both sides.
+- Q: Does P1 compute `r_pbis`? → A: No. P1 stores its inputs — `n`, `n_correct`, `p_value`, and the corrected-total `m1`/`m0`/`sd` — because those are what require the (attempt × question) grain. The coefficient itself is P3's, derivable from the stored columns without raw rows.
+
 ---
 
 ## User Scenarios & Testing
@@ -165,7 +172,7 @@ and a report regenerated identically from that JSON.
 
 ### US2 — A faithful, complete, re-runnable mirror (Priority: P2)
 
-The whole question bank and the whole behavioural history are copied into Lab Postgres: fourteen
+The whole question bank and the whole behavioural history are brought into Lab Postgres: fifteen
 tables, Production identifiers preserved exactly, soft-deleted rows copied rather than dropped, and
 `user_id` replaced by `student_ref` at the moment of reading. Running the import a second time
 against the fixed snapshot changes nothing. Killing it halfway and resuming loses no row and
@@ -181,7 +188,7 @@ neither a gap nor a duplicate.
 
 **Acceptance Scenarios**:
 
-1. **Given** a clean Lab database, **When** the fourteen migrations run, **Then** every mirror table
+1. **Given** a clean Lab database, **When** the migrations run, **Then** every mirror table
    carries the common columns and a UNIQUE constraint on (`source_system`, `source_id`), and no
    table carries a `user_id`, email, phone, name, or national-id column.
 2. **Given** the bank import, **When** it completes, **Then** the copied row count of each table
@@ -195,10 +202,10 @@ neither a gap nor a duplicate.
    the input order of the options changes, **Then** the hash does not.
 5. **Given** an empty `STUDENT_REF_PEPPER`, **When** a `student_ref` is derived, **Then** the
    derivation **throws** — a student ref built on an empty pepper is never produced.
-6. **Given** the behavioural import, **When** it completes, **Then** `source_results` and
-   `source_answers` match the source counts exactly, `attempt_index` is derived per
-   (`student_ref`, `quiz_source_id`) by creation order, and no column, log line, or error context
-   anywhere contains a `user_id`.
+6. **Given** the behavioural import, **When** it completes, **Then** `source_results` matches the
+   source count exactly, the derived statistics reconcile to the full source answer count,
+   `attempt_index` is derived per (`student_ref`, `quiz_source_id`) by creation order, and no column,
+   log line, or error context anywhere contains a `user_id`.
 7. **Given** a completed import, **When** `lab:import` runs again unchanged, **Then**
    `rows_inserted = 0`, `rows_updated = 0`, `error_count = 0`, and `rows_unchanged` equals the full
    mirror.
@@ -232,7 +239,7 @@ and confirm the suite goes red.
 
 **Acceptance Scenarios**:
 
-1. **Given** all fourteen tables populated, **When** the no-PII schema assertion runs, **Then** it
+1. **Given** all fifteen tables populated, **When** the no-PII schema assertion runs, **Then** it
    passes over the complete schema, examining columns rather than query results.
 2. **Given** any of the six profile-only tables, **When** the ETL is asked to copy it, **Then** it
    is refused **by name**, and reading a count from it still succeeds.
@@ -379,10 +386,11 @@ every displayed count in one click, with the snapshot date visible on every scre
 
 ### The mirror schema
 
-- **FR-009**: The Lab MUST gain **fourteen** tables, owned by Laravel migrations: `source_snapshots`,
+- **FR-009**: The Lab MUST gain **fifteen** tables, owned by Laravel migrations: `source_snapshots`,
   `source_categories`, `source_courses`, `source_chapters`, `source_lectures`, `source_quizzes`,
   `source_sections`, `source_questions`, `source_question_options`, `source_media`, `source_results`,
-  `source_answers`, `import_runs`, `import_errors`.
+  `source_item_stats`, `source_option_stats`, `import_runs`, `import_errors`. There is **no**
+  `source_answers`: individual answer events are aggregated, never mirrored (ADR-022).
 - **FR-010**: Every mirror table MUST carry `source_system`, `source_id`, `source_created_at`,
   `source_updated_at`, `source_deleted_at`, `imported_at`, `import_run_id`, and `payload_hash`, with
   a UNIQUE constraint on (`source_system`, `source_id`) as the upsert target. `payload_hash` is
@@ -400,9 +408,9 @@ every displayed count in one click, with the snapshot date visible on every scre
   `sections.description` MUST be read and never assumed empty because it is absent from `$fillable`.
 - **FR-014**: Indexes MUST be limited to those a downstream project will actually use:
   `source_questions(section_source_id)`, `source_question_options(question_source_id)`,
-  `source_answers(question_source_id)`, `source_answers(result_source_id)`,
-  `source_results(quiz_source_id)`, `source_results(student_ref)`. **No vector index and no trigram
-  index** — there is nothing to index yet.
+  `source_option_stats(question_source_id)`, `source_results(quiz_source_id)`,
+  `source_results(student_ref)`. **No vector index and no trigram index** — there is nothing to index
+  yet.
 - **FR-015**: Each migration MUST document, in a comment, what was deliberately not copied and why —
   price, Zoom data, `user_id` — and MUST record the source's `sorte_order` typo where it is copied as
   `sort_order`.
@@ -419,7 +427,7 @@ every displayed count in one click, with the snapshot date visible on every scre
   everywhere, never abbreviated. `is_correct_derived` MUST be `points > 0`. A/B/C/D letters MUST NOT
   be stored — they may be synthesized from `option_index` at render time only.
 - **FR-018**: `payload_hash` MUST be SHA256 over a key-sorted JSON serialization, computed by one
-  mechanism for all fourteen tables: **every table hashes its own copied source columns**, so a
+  mechanism for every mirror table: **each hashes its own copied source columns**, so a
   changed column is the only thing that makes a re-import write. `source_questions` is the **single
   exception** and MUST use §16's definition verbatim — `name`, `description`, `hint`, and the options
   ordered by `option_index` with `name` and `points` — so an edit to an option changes the question's
@@ -495,11 +503,19 @@ every displayed count in one click, with the snapshot date visible on every scre
 - **FR-039**: `duration_estimate_seconds` MUST be derived as `updated_at − created_at` and MUST be
   labelled an approximation **in the column name itself**, so it is never later read as a real test
   duration.
-- **FR-040**: `source_answers` MUST be imported in chunks (10,000 rows as the starting point), with
-  `resume_cursor` updated after each confirmed batch, and MUST carry `result_source_id`,
-  `question_source_id`, `option_source_id`, `points` and `is_correct_derived` (`points > 0`).
+- **FR-040**: Individual answer events MUST NOT be mirrored. `question_result` MUST be read as
+  aggregates pushed down into the source and stored as `source_item_stats` (`n`, `n_correct`,
+  `p_value`, and the corrected-total components `m1_corrected`, `m0_corrected`, `sd_corrected`) and
+  `source_option_stats` (`chosen_n`, `chosen_share`, `is_key`), each at both the `active` and `all`
+  scope. `question_result` MUST be on `profile_tables`, so `assertCopyable()` refuses it by name.
+  Every ratio and mean MUST cast to DOUBLE **before** aggregating — MySQL quantizes `AVG()` over an
+  integer expression and decimal division to 4 decimal places. `source_option_stats` MUST include
+  never-chosen options with `chosen_n = 0`, and `source_item_stats` MUST include questions with no
+  answer data at `n = 0` (ADR-022).
 - **FR-041**: The elapsed time of the behavioural run MUST be recorded in `import_runs`. It is a
-  number P3 needs to size its own batches — **not a gate**.
+  number P3 needs to size its own batches — **not a gate**. Mirror writes MUST go through one batched
+  upsert that preserves idempotency, the inserted/updated/unchanged counters, `payload_hash`
+  semantics and resume.
 
 ### The validation checks
 
@@ -546,7 +562,7 @@ every displayed count in one click, with the snapshot date visible on every scre
 
 ### Guarantees and wrap-up
 
-- **FR-054**: `NoPiiInLabSchemaTest` MUST be extended over all fourteen tables and MUST fail if a
+- **FR-054**: `NoPiiInLabSchemaTest` MUST be extended over all fifteen tables and MUST fail if a
   column appears carrying `user_id`, email, phone, name, or national identifier.
 - **FR-055**: A copy-guard test MUST prove that every ETL write site passes through
   `assertCopyable()`, and that attempting to copy a `profile_tables` table throws by name while
@@ -597,8 +613,11 @@ every displayed count in one click, with the snapshot date visible on every scre
   stable index. Correctness is derived from points, because the source has no correctness column.
 - **Stimulus** — the shared text on a section, with its length and its "long" flag. Whether
   passage-based questions are an add-on or a core requirement is decided by these numbers.
-- **Attempt / Answer** — behavioural history at the (attempt × question) grain, pseudonymized. Kept
-  raw because the discrimination index cannot be computed from a pre-aggregation.
+- **Attempt** — one quiz attempt, pseudonymized, mirrored row-for-row in `source_results`. Bounded
+  by attempts and genuinely row-level: cohorts and corrected totals need it.
+- **Answer statistics** — what the (attempt × question) grain is reduced to. The events themselves
+  are unbounded and never annotated individually, so they are stored as per-question and per-option
+  aggregates. The discrimination index is computed by P3 from the stored components (ADR-022).
 - **Import run** — the record of one import: what it read, what it wrote, what it left alone, what
   went wrong, and where to resume from.
 - **Import error** — one recorded anomaly: code, severity, where it was found, and enough context to
@@ -620,10 +639,12 @@ every displayed count in one click, with the snapshot date visible on every scre
   answers before `answer_key_state` is derived for the mirror.
 - **SC-005**: Every question in the source exists in the mirror with its Production identifier
   unchanged, soft-deleted rows included with `source_deleted_at`.
-- **SC-006**: `COUNT(source_answers)` equals the source count exactly, with no gap.
+- **SC-006**: The derived statistics reconcile exactly to the source: `SUM(source_item_stats.n)`
+  and `SUM(source_option_stats.chosen_n)` at the `all` scope each equal `COUNT(question_result)`, and
+  a sample of stored statistics recomputes from the raw source rows.
 - **SC-007**: Two consecutive imports produce 0 inserts, 0 updates and 0 errors on the second.
 - **SC-008**: An import interrupted mid-batch and resumed loses no row and duplicates none.
-- **SC-009**: No column in any of the fourteen tables can hold personal data, proven against the
+- **SC-009**: No column in any of the fifteen tables can hold personal data, proven against the
   schema; `user_id` appears in no column, no log, and no error context.
 - **SC-010**: Removing `assertCopyable()` from any single ETL write site fails a test.
 - **SC-011**: No row from any of the six profile-only tables is stored in the Lab, and each is
@@ -657,13 +678,23 @@ noted.
   date travels with every number as context.
 - **P0's counts are a baseline to confirm, not to replace.** A mismatch against the same snapshot is
   a bug in `lab:profile`.
-- The bank is ~29,142 questions and ~124,549 options; the behavioural side is ~1,136,204 results and
-  ~13,776,378 answers; the source database is ~2,189 MB. The full behavioural mirror is estimated at
-  ~1–2 GB against 149 GB free, so **storage is not a constraint** and no pre-aggregation is taken.
-- The behavioural rows are copied **in full and un-aggregated** because P3's discrimination index
-  needs the (attempt × question) grain. Aggregating in P1 would either kill P3 or force a second full
-  pass over 13.8 million rows.
-- **Fourteen tables, not the twelve §16 lists.** `source_chapters` and `source_lectures` are added:
+- The bank is ~29,142 questions and ~124,549 options; the behavioural side is 1,136,204 results and
+  13,776,378 answer events; the source database is ~2,189 MB.
+- **Attempts are mirrored; answer events are aggregated** (ADR-022, superseding this spec's original
+  assumption that both were copied in full). The original rationale was that P3's discrimination
+  index needs the (attempt × question) grain and that pre-aggregation would either kill P3 or force a
+  second full pass. Building it settled both halves: the raw mirror cost 13.8M rows and 3.8 GB, and
+  every consumer named in the program reads a `GROUP BY` over it — including the point-biserial,
+  whose corrected-total components come out of the same aggregate. So the grain is preserved in the
+  statistics, not in the rows.
+- The deciding argument is not storage but **boundedness**: answer events grow with students × time
+  without limit, while the aggregate's size is fixed by the question count. The raw mirror is the one
+  component that would not survive pointing the Lab at a much larger platform.
+- **Re-slicing is not foreclosed.** The raw rows remain in the frozen 2026-08-07 snapshot on this
+  machine, and recomputing the aggregate takes ~5 s, so a different window or grain costs one query.
+  This is what keeps constitution §V's "reproducible from raw rows" satisfied — against the snapshot,
+  which §III already defines as the reproducibility base.
+- **Fifteen tables, not the twelve §16 lists.** `source_chapters` and `source_lectures` are added:
   §14.2 permits them (title and order only), `quizzes.lecture_id` is otherwise an uninterpretable
   number, and `chapters` is the only parent of `lectures`.
 - **No ADR is written in this feature.** None of its decisions is architectural *and* durable *and*
@@ -711,9 +742,11 @@ P2 receives: source_questions.raw_text (unmodified) · source_question_options o
              · answer_key_state · payload_hash · the true active question count
              — and no clean_text, no search_text, no similarity hash, not one vector.
 
-P3 receives: source_results (student_ref · quiz · total_points · attempt_index) and source_answers
-             (result · question · option · points · is_correct_derived) — and that is all it needs.
-             No AI, no embeddings, no taxonomy.
+P3 receives: source_results (student_ref · quiz · total_points · attempt_index), plus
+             source_item_stats (n · n_correct · p_value · m1_corrected · m0_corrected ·
+             sd_corrected) and source_option_stats (chosen_n · chosen_share · is_key), each at the
+             active and all scope. r_pbis is P3's to compute from those components — no raw answer
+             rows, and none needed. No AI, no embeddings, no taxonomy.
 
 Both read their numbers from source_snapshots.profiling_results rather than re-querying the source,
 so the program keeps one version of the truth.

@@ -33,8 +33,8 @@ this pack carries a blocked-query warning, because no query is blocked.
 | 10 | `10-quiz-files-placement.sql` | `quiz_files` | copy |
 | 11 | `11-literal-duplicates-md5.sql` | `questions` | copy |
 | 12 | `12-sections-shared-stimulus.sql` | `sections` | copy |
-| 13 | `13-answer-data-volume.sql` | `question_result` | copy |
-| 14 | `14-answers-per-question-buckets.sql` | `question_result` | copy |
+| 13 | `13-answer-data-volume.sql` | `question_result` | **profile-only** |
+| 14 | `14-answers-per-question-buckets.sql` | `question_result` | **profile-only** |
 | 15 | `15-enrolment-source-course-user-vs-order.sql` | `course_user`, `course_order`, `orders` | **profile-only** |
 | 16 | `16-course-user-roles.sql` | `course_user`, `user_roles`, `roles` | **profile-only** |
 | 17 | `17-telegram-channel-coverage.sql` | `courses` | copy |
@@ -63,7 +63,8 @@ names the table. Results are persisted to `source_snapshots.profiling_results` (
 drift.
 
 Every query is a bare `SELECT`; nothing in the pack writes anything. Queries 13–14 read
-`question_result`, which carries `user_id` — the counts it returns name no student, but treat its
-output like the others: aggregate numbers for the report, not rows to import. The ETL that copies
+`question_result`, which carries `user_id` — the counts it returns name no student. Since
+2026-08-26 (ADR-022) that table is **profile-only**: its 13.8M answer events are read as aggregates
+and never mirrored, so `assertCopyable('question_result')` now throws by design. The ETL that copies
 rows is a separate P1 concern and must go through `App\Support\SourceReader::assertCopyable()`,
 never through these files.

@@ -1112,7 +1112,8 @@ source_questions        (raw_text, source_deleted_at, payload_hash, source_origi
 source_question_options (option_index, points, is_correct_derived)
 source_media            (from quiz_files — type, level, and path)
 source_results          (pseudonymized student_ref)
-source_answers          (from question_result — student_ref)
+source_item_stats       (per question x scope — from question_result, aggregated)
+source_option_stats     (per option x scope — from question_result, aggregated)
 import_runs
 import_errors
 ```
@@ -1241,7 +1242,7 @@ conflicting_duplicate detected
   → a high-priority queue for the trainers (it does not wait for the rest of the review)
   → the trainer's decision: which of the two answers is correct
   → a direct report to the team for correction in the Production admin
-  → tracking: how many students were affected (from source_answers)
+  → tracking: how many students were affected (from source_item_stats.n)
 ```
 
 This is greatly reinforced by P3: **a negative discrimination coefficient** points at the same question from another, independent angle.
@@ -1328,7 +1329,13 @@ v1.0 buried it in Project 8 behind six projects. But it is:
 - **The highest value per unit of effort in the entire program.**
 
 ### Dependencies
-P1 (Phase 2 — `source_results` and `source_answers`).
+P1 (Phase 2 — `source_results`, plus `source_item_stats` and `source_option_stats`).
+
+**Changed 2026-08-26 (ADR-022):** answer events are no longer mirrored row-for-row. P3 receives the
+per-question and per-option aggregates instead — `n`, `n_correct`, `p_value`, and the corrected-total
+`m1`/`m0`/`sd` that `r_pbis` is computed from. Nothing P3 needs was lost: every formula below is a
+`GROUP BY` over the raw rows, and those rows remain in the frozen 2026-08-07 snapshot, where
+recomputing a different slice costs one ~5 s query.
 
 ### The metrics and the formulas
 
