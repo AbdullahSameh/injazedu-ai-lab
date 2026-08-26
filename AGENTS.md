@@ -5,6 +5,10 @@ as **one** Spec Kit feature (`005-p1-profiling-and-question-mirror`) on branch
 
 Read before writing code for it:
 
+- **Spec Kit artefacts (current, read first)**: `specs/005-p1-profiling-and-question-mirror/` —
+  `spec.md` (63 FRs, 5 clarifications), `plan.md` (nine implementation groups, one open question),
+  `data-model.md` (the fourteen tables, checked against the schema), `notes.md` (Phase 0 findings),
+  `contracts/profiling-results.md`
 - Project plan: `docs/plans/project/1/p1-production-profiling-and-question-mirror.md` (v2.0, leaned
   2026-08-25) — ten phases, fourteen mirror tables, the derivation core, the ETL, the console
 - Program §16: `docs/plans/core/final_injazedu_ai_assessment_engagement_lab_full_plan.md`

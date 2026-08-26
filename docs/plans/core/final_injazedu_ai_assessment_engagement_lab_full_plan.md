@@ -778,6 +778,30 @@ Choosing a different model per task (say e2b for classification, e4b for generat
 
 The most important section that was entirely absent from v1.0. On 16 GB, capacity is a real constraint, not a detail.
 
+> **Updated 2026-08-26:** the §6 pack ran in full against the fixed 2026-08-07 snapshot. Full
+> results: `source_snapshots.profiling_results` (run `id=3`); the generated summary:
+> `docs/reports/p1-profiling.md`. The measured bank is **29,142 questions** (28,747 active,
+> 395 soft-deleted) — the estimates below still say 25,000; every count in this section is now
+> the planning-time guess, not the measurement.
+>
+> The three findings §6.3 and §16 named as blocking (FR-061/FR-062/FR-063):
+>
+> - **Multi-key** (queries 3+4): 34 questions have `correct_option_count > 1` (33 at 2, 1 at 4 —
+>   0.118% of active questions). **Operator decision (2026-08-26): data-entry errors, not a
+>   supported question type** — a valid question has exactly one correct option.
+>   `answer_key_state = multi_key` is a review flag, never an answerable item; nothing is repaired
+>   or deleted in P1. Points values outside {0, 1} (2, 4, 5, 7, 8, 20, 25 — 344 options, mostly
+>   trainer data-entry) do not change correctness: any option with `points > 0` is still the
+>   correct one.
+> - **Enrolment table** (queries 15+16): **`course_order` is enrolment** (71,228 rows, 28,292
+>   distinct users, 228 courses) — **not** `course_user` (249 rows, 17 distinct users, all 17
+>   split across trainer/user roles per query 16). Operator confirmed 2026-08-26:
+>   `course_user` is an internal trainer/staff-course assignment table, not student enrolment.
+>   P5/P6 planning builds on `course_order`.
+> - **Broken-question rate** (query 3): `correct_count = 0` on 31 of 28,747 active questions —
+>   **0.108%**, well under the 2% threshold (FR-063). The dedup track and this feature's scope
+>   are unaffected; no re-scoping was triggered.
+
 ### 13.1 The embeddings
 
 ```text

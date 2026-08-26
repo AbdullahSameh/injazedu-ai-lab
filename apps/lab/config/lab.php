@@ -73,6 +73,41 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Import (FR-022)
+    |--------------------------------------------------------------------------
+    |
+    | Shared configuration for `php artisan lab:import`. `chunk_size` is the
+    | default `--chunk` batch size for the ~13.8M-row behavioural tables,
+    | tuned by measurement, not assumed correct. `source_system` is the
+    | constant every mirror table's `source_system` column carries — one
+    | value, because this Lab has exactly one source.
+    |
+    */
+
+    'import' => [
+        'chunk_size' => 10000,
+        'source_system' => 'injazedu_production',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Profiling (FR-004)
+    |--------------------------------------------------------------------------
+    |
+    | Where `php artisan lab:profile` finds the eighteen §6 query files and
+    | where it generates the human-readable report. The report is generated
+    | from `source_snapshots.profiling_results` alone (FR-005) — this path is
+    | an output location, never a second source of truth.
+    |
+    */
+
+    'profiling' => [
+        'sql_path' => base_path('../../sql/profiling'),
+        'report_path' => base_path('../../docs/reports/p1-profiling.md'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Embedding contract (FR-004, data-model.md §3)
     |--------------------------------------------------------------------------
     |
