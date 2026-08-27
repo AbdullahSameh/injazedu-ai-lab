@@ -7,14 +7,6 @@ use Tests\TestCase;
 
 class VectorProbeSchemaTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        config(['database.connections.pgsql.database' => 'injazedu_lab']);
-        DB::purge('pgsql');
-    }
-
     public function test_vector_probe_table_has_the_fixed_non_pii_shape_and_768_dimensions(): void
     {
         $columns = DB::connection('pgsql')->select(<<<'SQL'

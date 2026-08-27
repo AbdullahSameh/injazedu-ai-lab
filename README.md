@@ -155,6 +155,35 @@ Ten `PASS` rows with exit code `0` means the Lab is ready. Checks 9 and 10 pass 
 source refuses writes, and the `users` table is refused by name — that refusal is the guardrail
 working, not a failure.
 
+## P1 — Profile the bank, mirror it, see it
+
+Two commands take the ten green checks above to a populated console:
+
+```sh
+cd apps/lab
+/opt/homebrew/opt/php@8.4/bin/php artisan lab:profile
+/opt/homebrew/opt/php@8.4/bin/php artisan lab:import
+```
+
+`lab:profile` runs the eighteen `sql/profiling/` queries once through the guarded `injazedu`
+connection, persists the results (`source_snapshots.profiling_results`), and regenerates
+`docs/reports/p1-profiling.md` — never hand-edit that file, it is output, not a second source of
+truth. `lab:import` (`--kind=all` by default) then mirrors the bank and the behavioural tables from
+that snapshot into the Lab's own tables; re-running it writes nothing on a second pass (FR-022,
+FR-029).
+
+One screen: create a panel user if you don't have one yet, serve the app, then open the console.
+
+```sh
+/opt/homebrew/opt/php@8.4/bin/php artisan make:filament-user
+/opt/homebrew/opt/php@8.4/bin/php artisan serve
+```
+
+`http://localhost:8000/admin` → **Inventory**. Every card links to the filtered question list behind
+its count, and the header above every screen carries `snapshot_taken_at`, the mirrored question
+count, and the date of the last import run — no number appears without that frame (FR-048, FR-050).
+The panel defaults to Arabic RTL; switch to English from the user menu top-right.
+
 ## Day-to-day
 
 ```sh

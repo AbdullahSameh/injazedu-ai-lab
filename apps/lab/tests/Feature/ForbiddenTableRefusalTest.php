@@ -19,6 +19,12 @@ use Tests\TestCase;
  * SourceTableAllowlistTest, which is what stops this shrinking list from
  * becoming an eroding allowlist.
  *
+ * The 2026-08-26 split (ADR-022) moved `question_result` from
+ * `source_tables` to `profile_tables`. That does not change this list —
+ * the table was already readable and is not newly exposed; what changed is
+ * that it is no longer copyable, which is a strengthening, asserted next
+ * door.
+ *
  * Runs with the service and the model runtime both stopped: the refusal
  * happens before any connection is opened.
  */

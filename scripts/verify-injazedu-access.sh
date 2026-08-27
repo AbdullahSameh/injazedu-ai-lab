@@ -42,8 +42,11 @@ MYSQL_PORT=3306
 MYSQL_DB=injazedu
 EXPECTED_QUESTIONS=29142
 
-# The copy allowlist (data-model.md §2). Eleven tables, confirmed present as
-# InnoDB base tables on 2026-08-21. Keep in sync with apps/lab/config/lab.php.
+# The tables this script confirms are present as InnoDB base tables (checked
+# 2026-08-21). Ten are copyable; question_result is profile-only since
+# 2026-08-26 (ADR-022) — readable as aggregates, never mirrored. Presence is
+# all that is asserted here, so both belong on the list. Keep in sync with
+# apps/lab/config/lab.php.
 TABLES="categories courses chapters lectures quizzes sections questions options quiz_files results question_result"
 
 # Helper: run SQL against the source. root, empty password — by design.

@@ -7,17 +7,23 @@ return [
     | Source COPY allowlist — governs COPYING INTO the Lab, not reading
     |--------------------------------------------------------------------------
     |
-    | The eleven tables of the InjazEdu MySQL source the Lab may COPY INTO its
+    | The ten tables of the InjazEdu MySQL source the Lab may COPY INTO its
     | own database. This list is the copy check: P1's ETL must call
     | App\Support\SourceReader::assertCopyable() before writing any row.
     |
     | It does NOT govern reading — reading is source_tables ∪ profile_tables.
     | Never merge the two lists into one union check: reading a count is not
     | storing a row, and the split between them is the safety property
-    | (P0 §3.2, ADR-021 revised 2026-08-23, FR-001).
+    | (P0 §3.2, ADR-021 revised 2026-08-23 and 2026-08-26, FR-001).
     |
-    | `results` and `question_result` carry user_id — copyable by design,
-    | never storable as-is. P1's ETL converts it to student_ref on the way in.
+    | `results` carries user_id — copyable by design, never storable as-is:
+    | the ETL converts it to student_ref on the way in.
+    |
+    | `question_result` LEFT this list on 2026-08-26 (ADR-022). The answer-
+    | event table is unbounded behavioural data and is never mirrored; it is
+    | read as aggregates into source_item_stats and source_option_stats.
+    | Its place on profile_tables is what makes "no raw answer rows are
+    | stored" a structural guarantee rather than a convention.
     |
     */
 
@@ -32,7 +38,6 @@ return [
         'options',
         'quiz_files',
         'results',
-        'question_result',
     ],
 
     /*
@@ -40,9 +45,16 @@ return [
     | Profile allowlist — governs READING AS COUNTS, never copying
     |--------------------------------------------------------------------------
     |
-    | Six additional InjazEdu tables that may be READ (as counts/aggregates for
-    | §6 profiling) but may NEVER be copied into the Lab database. Added
-    | 2026-08-23 (P0 §3.2) so §6 queries 15, 16 and 18 can run in P1.
+    | Seven InjazEdu tables that may be READ (as counts/aggregates) but may
+    | NEVER be copied into the Lab database. Six were added 2026-08-23
+    | (P0 §3.2) so §6 queries 15, 16 and 18 could run in P1.
+    |
+    | `question_result` joined them on 2026-08-26 (ADR-022): 13.8M answer
+    | events, read only as GROUP BY results. Everything the program needs
+    | from it — p_value, the point-biserial inputs, the distractor
+    | distribution — is an aggregate bounded by the QUESTION count, not the
+    | answer count, which is what lets this Lab point at a far larger
+    | platform. Its rows stay in the source.
     |
     | This list is NOT a copy check: assertCopyable() accepts source_tables
     | alone. A table on this list is read-only in the strongest sense — its
@@ -57,6 +69,7 @@ return [
         'user_roles',
         'roles',
         'book_course',
+        'question_result',
     ],
 
     /*
@@ -70,6 +83,93 @@ return [
     */
 
     'snapshot_taken_at' => env('SNAPSHOT_TAKEN_AT'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Destructive-command guard (2026-08-27)
+    |--------------------------------------------------------------------------
+    |
+    | `migrate:fresh`, `migrate:refresh`, `migrate:reset`, `db:wipe`, and any
+    | raw DROP DATABASE / DROP SCHEMA ... CASCADE statement are refused
+    | (App\Exceptions\DestructiveOperationBlocked, AppServiceProvider::boot())
+    | unless the resolved database name is in this list. Only the disposable
+    | injazedu_lab_test belongs here — never injazedu_lab. This is what a
+    | destructive command run without --env=testing hits instead of the
+    | developer's real, manually-imported data.
+    |
+    */
+
+    'safe_destructive_databases' => array_filter(explode(
+        ',',
+        env('LAB_SAFE_DESTRUCTIVE_DATABASES', 'injazedu_lab_test')
+    )),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Import (FR-022)
+    |--------------------------------------------------------------------------
+    |
+    | Shared configuration for `php artisan lab:import`. `chunk_size` is the
+    | default `--chunk` batch size for the ~13.8M-row behavioural tables,
+    | tuned by measurement, not assumed correct. `source_system` is the
+    | constant every mirror table's `source_system` column carries — one
+    | value, because this Lab has exactly one source.
+    |
+    */
+
+    'import' => [
+        'chunk_size' => 10000,
+        'source_system' => 'injazedu_production',
+
+        /*
+        | The multi-key decision (FR-061), recorded 2026-08-26 by the
+        | operator from queries 3 and 4: 34 questions carry more than one
+        | correct option (33 at 2, 1 at 4 — 0.118% of active questions), and
+        | they are **data-entry errors, not a supported question type**. A
+        | valid question has exactly one correct option;
+        | `answer_key_state = multi_key` is a review flag, never an
+        | answerable item. Nothing is repaired or deleted in P1.
+        |
+        | Recorded in §13 of the program plan beside the measurement it came
+        | from. App\Jobs\Import\BackfillAnswerKeyState refuses to run while
+        | this is null — that refusal is what stops a question leaving
+        | `pending` on a guess (SC-020).
+        */
+        'multi_key_policy' => 'data_entry_error',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Student pseudonymization (FR-019, FR-037)
+    |--------------------------------------------------------------------------
+    |
+    | HMAC-SHA256(pepper, user_id) is the only identity a behavioural row
+    | carries as `student_ref`. Confirmed stored in apps/lab/.env, outside
+    | Git and off this machine (P1 plan §8 item B): once ~1.1 M student_ref
+    | values exist, changing this orphans every one of them and there is no
+    | backup. App\Support\Derive\StudentRefHasher throws rather than hash
+    | against an empty or missing value.
+    |
+    */
+
+    'student_ref_pepper' => env('STUDENT_REF_PEPPER'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Profiling (FR-004)
+    |--------------------------------------------------------------------------
+    |
+    | Where `php artisan lab:profile` finds the eighteen §6 query files and
+    | where it generates the human-readable report. The report is generated
+    | from `source_snapshots.profiling_results` alone (FR-005) — this path is
+    | an output location, never a second source of truth.
+    |
+    */
+
+    'profiling' => [
+        'sql_path' => base_path('../../sql/profiling'),
+        'report_path' => base_path('../../docs/reports/p1-profiling.md'),
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -111,6 +211,24 @@ return [
     'ai_service' => [
         'base_url' => env('AI_SERVICE_URL'),
         'timeout' => 10,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Console locales (FR-047)
+    |--------------------------------------------------------------------------
+    |
+    | Arabic is the default (config('app.locale')) and stays first — the
+    | console is Arabic-first, not Arabic-only. The switch stores the
+    | viewer's choice in the session; App\Http\Middleware\SetLocale reads
+    | it and refuses anything not in this list. Technical identifiers never
+    | move — see the per-key note in lang/{ar,en}/console.php.
+    |
+    */
+
+    'locales' => [
+        'ar' => 'العربية',
+        'en' => 'English',
     ],
 
 ];
