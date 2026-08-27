@@ -86,6 +86,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Destructive-command guard (2026-08-27)
+    |--------------------------------------------------------------------------
+    |
+    | `migrate:fresh`, `migrate:refresh`, `migrate:reset`, `db:wipe`, and any
+    | raw DROP DATABASE / DROP SCHEMA ... CASCADE statement are refused
+    | (App\Exceptions\DestructiveOperationBlocked, AppServiceProvider::boot())
+    | unless the resolved database name is in this list. Only the disposable
+    | injazedu_lab_test belongs here — never injazedu_lab. This is what a
+    | destructive command run without --env=testing hits instead of the
+    | developer's real, manually-imported data.
+    |
+    */
+
+    'safe_destructive_databases' => array_filter(explode(
+        ',',
+        env('LAB_SAFE_DESTRUCTIVE_DATABASES', 'injazedu_lab_test')
+    )),
+
+    /*
+    |--------------------------------------------------------------------------
     | Import (FR-022)
     |--------------------------------------------------------------------------
     |
@@ -191,6 +211,24 @@ return [
     'ai_service' => [
         'base_url' => env('AI_SERVICE_URL'),
         'timeout' => 10,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Console locales (FR-047)
+    |--------------------------------------------------------------------------
+    |
+    | Arabic is the default (config('app.locale')) and stays first — the
+    | console is Arabic-first, not Arabic-only. The switch stores the
+    | viewer's choice in the session; App\Http\Middleware\SetLocale reads
+    | it and refuses anything not in this list. Technical identifiers never
+    | move — see the per-key note in lang/{ar,en}/console.php.
+    |
+    */
+
+    'locales' => [
+        'ar' => 'العربية',
+        'en' => 'English',
     ],
 
 ];

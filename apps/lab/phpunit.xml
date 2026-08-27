@@ -11,6 +11,15 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!--
+          MirrorValidation reads the real, live injazedu_lab database on
+          purpose (it validates the actual imported mirror) and is never run
+          by `composer test` / `php artisan test` without an explicit
+          testsuite flag naming it — see composer.json's "test:mirror" script.
+        -->
+        <testsuite name="MirrorValidation">
+            <directory>tests/Validation</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
@@ -23,9 +32,14 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="DB_URL" value=""/>
+        <!--
+          DB_* is intentionally NOT overridden here. .env.testing (loaded by
+          APP_ENV=testing above) fully specifies the pgsql connection against
+          the dedicated, disposable injazedu_lab_test database. Setting any
+          DB_* var in this block would shadow .env.testing (Dotenv will not
+          overwrite an already set environment variable), which is exactly
+          the gap that once let tests fall through to the real injazedu_lab.
+        -->
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

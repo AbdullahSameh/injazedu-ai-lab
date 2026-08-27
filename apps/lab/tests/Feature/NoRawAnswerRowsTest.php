@@ -24,14 +24,6 @@ use Tests\TestCase;
  */
 class NoRawAnswerRowsTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        config(['database.connections.pgsql.database' => 'injazedu_lab']);
-        DB::purge('pgsql');
-    }
-
     public function test_the_raw_answers_table_does_not_exist(): void
     {
         $exists = DB::connection('pgsql')

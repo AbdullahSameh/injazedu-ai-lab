@@ -18,8 +18,8 @@
 - Nothing in this repository writes to or mounts the snapshot. The first permitted access is
   المرحلة 3: read-only through the application's `injazedu` connection, guarded by an empty write
   host list, a query listener that throws on non-reads, and two application-level allowlists —
-  eleven tables that may be copied into the Lab and six more readable as counts only (P0 §3.2,
-  2026-08-23; `docs/ADR/ADR-021.md`).
+  ten tables that may be copied into the Lab and seven more readable as counts only, never stored
+  (P0 §3.2, 2026-08-23 and 2026-08-26; `docs/ADR/ADR-021.md`, `docs/ADR/ADR-022.md`).
 - **The copy is not refreshed during this program.** If a future project ever changes that
   decision, update `snapshot_taken_at` here **and** in `apps/lab/.env` /
   `apps/lab/.env.example` (`SNAPSHOT_TAKEN_AT`) in the same commit, and re-run `lab:profile` so the

@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Validation;
 
 use App\Jobs\Import\Bank\ImportSections;
 use App\Models\ImportRun;
@@ -9,7 +9,6 @@ use App\Support\Import\ResumeCursor;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
-use Tests\TestCase;
 
 /**
  * FR-029 / SC-019: `--queue` changes the dispatcher, never the work. The

@@ -4,6 +4,7 @@ namespace App\Jobs\Import\Bank;
 
 use App\Models\ImportRun;
 use App\Support\Import\BatchUpsert;
+use App\Support\Import\ImportErrorRecorder;
 use App\Support\Import\ImportRunRecorder;
 use App\Support\Import\ResumeCursor;
 use App\Support\SourceReader;
@@ -25,6 +26,12 @@ use Illuminate\Queue\SerializesModels;
  * Soft-deleted rows are copied with `source_deleted_at`, never excluded
  * (FR-032). `assertCopyable()` happens inside `BatchUpsert`, the single
  * write site every mirror job funnels through (FR-026).
+ *
+ * **Validation rides along, it does not gate** (FR-046). `validate()` is
+ * called for every row *after* that row has been added to the batch, so a
+ * finding can never keep a row out of the mirror: anomalies are recorded
+ * beside faithful copies, never instead of them. Subclasses with no checks
+ * override nothing and pay nothing.
  */
 abstract class BankImportJob implements ShouldQueue
 {
@@ -36,7 +43,10 @@ abstract class BankImportJob implements ShouldQueue
     {
         $run = ImportRun::findOrFail($this->importRunId);
         $recorder = ImportRunRecorder::for($run);
+        $errors = new ImportErrorRecorder($run);
         $cursor = new ResumeCursor($run);
+
+        $this->prepareChecks($source);
 
         $lastId = $cursor->lastConfirmed($this->sourceTable()) ?? 0;
 
@@ -57,8 +67,17 @@ abstract class BankImportJob implements ShouldQueue
             $batch[] = $this->commonAttributes($row, $run) + $this->mapAttributes($row);
             $maxId = max($maxId, (int) $row->id);
 
+            // After the row is in the batch, never before — a finding
+            // records what is wrong with a row that is being copied anyway.
+            $this->validate($row, $errors);
+
             if (count($batch) >= BatchUpsert::BATCH_SIZE) {
                 $this->flush($upsert, $recorder, $batch);
+                // Findings commit before the cursor moves past the rows they
+                // describe. A resumed run never re-reads those rows, so a
+                // finding still sitting in the buffer when the cursor
+                // advanced would be lost for good rather than merely delayed.
+                $errors->flush();
                 // Rows arrive in ascending id order, so everything at or
                 // below $maxId really is committed — the cursor can move.
                 $cursor->confirm($this->sourceTable(), $maxId);
@@ -68,9 +87,26 @@ abstract class BankImportJob implements ShouldQueue
 
         if ($batch !== []) {
             $this->flush($upsert, $recorder, $batch);
+            $errors->flush();
             $cursor->confirm($this->sourceTable(), $maxId);
         }
+
+        $errors->flush();
     }
+
+    /**
+     * Read whatever the pass's checks need, once, before the first row.
+     * Reads the **source**, not the mirror: the mirror does not yet hold the
+     * answer for the jobs that run early, and under `--resume` it holds only
+     * part of it.
+     */
+    protected function prepareChecks(SourceReader $source): void {}
+
+    /**
+     * Run this table's checks over one source row. Default: none — a table
+     * with nothing to check overrides nothing.
+     */
+    protected function validate(object $row, ImportErrorRecorder $errors): void {}
 
     /**
      * @param  list<array<string, mixed>>  $batch

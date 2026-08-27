@@ -3,6 +3,11 @@
 namespace App\Jobs\Import\Bank;
 
 use App\Support\Derive\PayloadHasher;
+use App\Support\Import\ImportErrorRecorder;
+use App\Support\Import\Validators\SectionCheck;
+use App\Support\Import\Validators\SectionUnderImport;
+use App\Support\Import\Validators\ValidationSuite;
+use App\Support\SourceReader;
 
 /**
  * `sections` → `source_sections` — where the shared stimulus lives (§8,
@@ -13,6 +18,12 @@ use App\Support\Derive\PayloadHasher;
  *
  * `questions_count` is a second pass, after `source_questions` exists
  * (T060) — left at its column default (0) here.
+ *
+ * Two checks run here: `ORPHAN_QUIZ` and `STIMULUS_NO_QUESTIONS`. Both need
+ * a table this pass does not own, and this pass runs before
+ * `ImportQuestions`, so both lookups are read from the **source** once
+ * rather than from the mirror — which is also what keeps them correct under
+ * `--resume`, where the mirror holds only part of the bank.
  */
 final class ImportSections extends BankImportJob
 {
@@ -31,6 +42,41 @@ final class ImportSections extends BankImportJob
     protected function selectColumns(): array
     {
         return ['id', 'quiz_id', 'name', 'description', 'order', 'created_at', 'updated_at', 'deleted_at'];
+    }
+
+    /** @var list<SectionCheck> */
+    private array $checks = [];
+
+    protected function prepareChecks(SourceReader $source): void
+    {
+        $this->checks = ValidationSuite::forSections(
+            array_fill_keys($source->table('quizzes')->pluck('id')->all(), true),
+            array_fill_keys(
+                $source->table('questions')
+                    ->whereNull('deleted_at')
+                    ->whereNotNull('section_id')
+                    ->distinct()
+                    ->pluck('section_id')
+                    ->all(),
+                true
+            ),
+        );
+    }
+
+    protected function validate(object $row, ImportErrorRecorder $errors): void
+    {
+        $section = new SectionUnderImport(
+            sourceId: (int) $row->id,
+            quizSourceId: $row->quiz_id === null ? null : (int) $row->quiz_id,
+            stimulusRaw: $row->description,
+            isSoftDeleted: $row->deleted_at !== null,
+        );
+
+        foreach ($this->checks as $check) {
+            if ($finding = $check->check($section)) {
+                $errors->recordFinding($finding);
+            }
+        }
     }
 
     protected function mapAttributes(object $row): array

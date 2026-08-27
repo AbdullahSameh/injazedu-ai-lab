@@ -58,9 +58,21 @@ local copy freely; read-only is a property of the **Lab application**, enforced 
 
 **Never propose a backup, a dump schedule, or a restore drill.** Cancelled program-wide on
 2026-08-23 (constitution v2.1.0, core plan §14.6, P0 المرحلة 9): this is a development machine, the
-snapshot is disposable, and the Lab database is 8.4 MB reproducible from `migrate` + `lab:health`.
-Reviewer decisions are the one irreproducible artefact, they do not exist until P2, and protecting
-them is a go-live concern.
+snapshot is disposable, and the Lab database's **schema** is 8.4 MB reproducible from `migrate` +
+`lab:health`. Reviewer decisions are the one irreproducible artefact, they do not exist until P2,
+and protecting them is a go-live concern.
+
+**"Reproducible" is not permission to reset `injazedu_lab` (amended 2026-08-27).** It describes the
+*schema* being cheap to recreate from `migrate`, not the manually-imported mirror data sitting in
+it — re-importing costs real wall-clock time and is not something to trigger casually. Never run
+`migrate:fresh`, `migrate:refresh`, `migrate:reset`, `db:wipe`, or `DROP DATABASE`/`DROP SCHEMA`
+against `injazedu_lab` — always ask the user first, even when a task seems to call for "a clean
+database." `apps/lab/tests/` runs against a separate, disposable `injazedu_lab_test` database
+(`.env.testing`); `composer test:mirror` is the only suite allowed to read the real mirror, and it
+is read-only/transaction-rolled-back by design. A destructive command against any database other
+than `injazedu_lab_test` is refused outright by `AppServiceProvider::guardDestructiveCommands()` /
+`guardDestructiveStatements()` (`config('lab.safe_destructive_databases')`) — but that guard is a
+backstop, not a substitute for asking.
 
 **Never propose a memory gate, ceiling, or acceptance criterion on a memory number.** Also cancelled
 2026-08-23. Manual steps live in `docs/runbooks/memory-check.md`.

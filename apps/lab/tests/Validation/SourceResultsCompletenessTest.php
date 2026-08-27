@@ -1,10 +1,9 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Validation;
 
 use App\Support\SourceReader;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
 
 /**
  * FR-037 / SC-006: `source_results` is the one behavioural table still

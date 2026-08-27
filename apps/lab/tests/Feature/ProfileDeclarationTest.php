@@ -7,7 +7,6 @@ use App\Models\SourceSnapshot;
 use App\Support\Profiling\QueryFile;
 use App\Support\Profiling\QueryPack;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -20,16 +19,6 @@ use Tests\TestCase;
  */
 class ProfileDeclarationTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // phpunit.xml points DB_DATABASE at :memory: for the sqlite default;
-        // SourceSnapshot lives in the real pgsql database, so restore it.
-        config(['database.connections.pgsql.database' => 'injazedu_lab']);
-        DB::purge('pgsql');
-    }
-
     public function test_eighteen_file_headers_match_the_readme_table(): void
     {
         $files = (new QueryPack)->files();

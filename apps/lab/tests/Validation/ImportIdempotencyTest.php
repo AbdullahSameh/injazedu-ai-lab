@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Validation;
 
 use App\Jobs\Import\BackfillAnswerKeyState;
 use App\Jobs\Import\Behaviour\ImportResults;
@@ -10,7 +10,6 @@ use App\Support\Import\ResumeCursor;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
-use Tests\TestCase;
 
 /**
  * FR-024 / SC-007: running `lab:import` twice must leave the mirror exactly
@@ -30,9 +29,9 @@ use Tests\TestCase;
  * Two shapes, deliberately:
  *
  *   - **the bank, through the command**, because that is what an operator
- *     actually types, and it exercises all nine jobs, the run recorder and
- *     the counters together. It is a no-op re-run over 174K rows and costs
- *     ~8s per pass.
+ *     actually types, and it exercises all nine jobs, the run recorder, the
+ *     thirteen validators and the counters together. It is a no-op re-run
+ *     over 174K rows and costs ~10s per pass.
  *   - **`source_results`, at the job level over a fixed tail slice**, because
  *     the full 1.1M-row pass costs ~65s and running it twice for the same
  *     evidence is not worth two minutes of suite time. The slice is deleted
@@ -64,24 +63,46 @@ class ImportIdempotencyTest extends TestCase
 
     public function test_two_consecutive_bank_runs_write_nothing_and_agree(): void
     {
-        $mirrored = $this->bankRowCount();
+        // A no-op re-import should write nothing, but this exercises the
+        // real command against the real mirror to prove it — the net
+        // "nothing changed" is what a rollback protects, not a promise
+        // taken on faith.
+        $connection = DB::connection('pgsql');
+        $connection->beginTransaction();
 
-        $this->assertGreaterThan(0, $mirrored, 'The mirror is empty — run `lab:import --kind=bank` first.');
+        try {
+            $mirrored = $this->bankRowCount();
 
-        $first = $this->runBankImport();
-        $second = $this->runBankImport();
+            $this->assertGreaterThan(0, $mirrored, 'The mirror is empty — run `lab:import --kind=bank` first.');
 
-        foreach (['first' => $first, 'second' => $second] as $label => $run) {
-            $this->assertSame('completed', $run->status, "The {$label} run did not complete.");
-            $this->assertSame(0, (int) $run->rows_inserted, "The {$label} run inserted a row into a mirrored bank.");
-            $this->assertSame(0, (int) $run->rows_updated, "The {$label} run rewrote a row that had not changed.");
-            $this->assertSame(0, (int) $run->error_count, "The {$label} run recorded an error.");
-            $this->assertSame($mirrored, (int) $run->rows_unchanged, "The {$label} run did not see the whole mirror.");
+            $first = $this->runBankImport();
+            $second = $this->runBankImport();
+
+            foreach (['first' => $first, 'second' => $second] as $label => $run) {
+                $this->assertSame('completed', $run->status, "The {$label} run did not complete.");
+                $this->assertSame(0, (int) $run->rows_inserted, "The {$label} run inserted a row into a mirrored bank.");
+                $this->assertSame(0, (int) $run->rows_updated, "The {$label} run rewrote a row that had not changed.");
+                $this->assertSame($mirrored, (int) $run->rows_unchanged, "The {$label} run did not see the whole mirror.");
+            }
+
+            // `error_count` is anomalies FOUND, not failures suffered — the
+            // thirteen checks run on every pass and the bank's defects do not
+            // heal between runs, so a no-op re-import still reports them all.
+            // Equality between the two runs is the idempotency claim here;
+            // zero would mean the validators had stopped running.
+            $this->assertGreaterThan(0, (int) $first->error_count, 'The validators did not run.');
+            $this->assertSame(
+                (int) $first->error_count,
+                (int) $second->error_count,
+                'The same bank produced a different number of findings on the second pass.'
+            );
+
+            // The mirror is the same size it was before either run: nothing was
+            // added, and nothing was quietly dropped and re-added.
+            $this->assertSame($mirrored, $this->bankRowCount());
+        } finally {
+            $connection->rollBack();
         }
-
-        // The mirror is the same size it was before either run: nothing was
-        // added, and nothing was quietly dropped and re-added.
-        $this->assertSame($mirrored, $this->bankRowCount());
     }
 
     public function test_source_results_inserts_once_then_reports_unchanged(): void
@@ -134,26 +155,33 @@ class ImportIdempotencyTest extends TestCase
      */
     public function test_the_backfill_passes_change_nothing_on_a_second_run(): void
     {
-        $this->artisan('lab:import', ['--kind' => 'backfill'])->assertExitCode(0);
-        $this->artisan('lab:import', ['--kind' => 'backfill'])->assertExitCode(0);
+        $connection = DB::connection('pgsql');
+        $connection->beginTransaction();
 
-        $second = ImportRun::where('kind', 'backfill')->latest('id')->firstOrFail();
+        try {
+            $this->artisan('lab:import', ['--kind' => 'backfill'])->assertExitCode(0);
+            $this->artisan('lab:import', ['--kind' => 'backfill'])->assertExitCode(0);
 
-        $this->assertSame('completed', $second->status);
-        $this->assertSame(0, (int) $second->rows_inserted, 'A backfill inserted a row.');
-        $this->assertSame(0, (int) $second->rows_updated, 'A backfill rewrote a column that had not changed.');
-        $this->assertSame(0, (int) $second->error_count);
-        $this->assertGreaterThan(0, (int) $second->rows_unchanged);
+            $second = ImportRun::where('kind', 'backfill')->latest('id')->firstOrFail();
 
-        // SC-020's first half, on the live mirror: nothing active is pending.
-        $this->assertSame(
-            0,
-            (int) DB::connection('pgsql')->table('source_questions')
-                ->where('answer_key_state', 'pending')
-                ->whereNull('source_deleted_at')
-                ->count(),
-            'An active question is still waiting on the answer-key decision.'
-        );
+            $this->assertSame('completed', $second->status);
+            $this->assertSame(0, (int) $second->rows_inserted, 'A backfill inserted a row.');
+            $this->assertSame(0, (int) $second->rows_updated, 'A backfill rewrote a column that had not changed.');
+            $this->assertSame(0, (int) $second->error_count);
+            $this->assertGreaterThan(0, (int) $second->rows_unchanged);
+
+            // SC-020's first half, on the live mirror: nothing active is pending.
+            $this->assertSame(
+                0,
+                (int) $connection->table('source_questions')
+                    ->where('answer_key_state', 'pending')
+                    ->whereNull('source_deleted_at')
+                    ->count(),
+                'An active question is still waiting on the answer-key decision.'
+            );
+        } finally {
+            $connection->rollBack();
+        }
     }
 
     /**

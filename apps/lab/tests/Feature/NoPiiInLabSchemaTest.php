@@ -53,16 +53,6 @@ class NoPiiInLabSchemaTest extends TestCase
         'source_results', 'source_item_stats', 'source_option_stats',
     ];
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // phpunit.xml points DB_DATABASE at :memory: for the sqlite default;
-        // the Lab schema lives in the real pgsql database, so restore it.
-        config(['database.connections.pgsql.database' => 'injazedu_lab']);
-        DB::purge('pgsql');
-    }
-
     public function test_no_non_framework_table_has_an_always_forbidden_column(): void
     {
         $columns = DB::connection('pgsql')

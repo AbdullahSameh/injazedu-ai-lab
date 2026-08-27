@@ -7,8 +7,11 @@ use App\Support\Derive\AnswerKeyDeriver;
 use App\Support\Derive\PayloadHasher;
 use App\Support\Import\Bank\QuestionOptionsFetcher;
 use App\Support\Import\BatchUpsert;
+use App\Support\Import\ImportErrorRecorder;
 use App\Support\Import\ImportRunRecorder;
 use App\Support\Import\ResumeCursor;
+use App\Support\Import\Validators\QuestionUnderImport;
+use App\Support\Import\Validators\ValidationSuite;
 use App\Support\SourceReader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,6 +29,16 @@ use Illuminate\Queue\SerializesModels;
  * `raw_text` (`questions.name`) is copied unmodified. `answer_key_state`
  * always comes out `pending` (`AnswerKeyDeriver`, T031) — the multi-key
  * policy is the backfill pass's job (T062), not this one's.
+ *
+ * **Ten of the thirteen checks run here** (FR-042), because this is the one
+ * pass that holds a question together with its full option set. That
+ * includes `DUPLICATE_OPTION_TEXT` and `OPTION_ORDER_TIE`, which are defects
+ * in the options but properties of the set, and are filed against the
+ * question — the row a reviewer would actually open.
+ *
+ * Every check runs *after* the row is in the batch. A finding never keeps a
+ * row out of the mirror, never repairs it and never normalises it (FR-046):
+ * the anomaly is recorded beside a faithful copy.
  */
 final class ImportQuestions implements ShouldQueue
 {
@@ -39,8 +52,16 @@ final class ImportQuestions implements ShouldQueue
         $recorder = ImportRunRecorder::for($run);
         $cursor = new ResumeCursor($run);
 
+        $errors = new ImportErrorRecorder($run);
         $lastId = $cursor->lastConfirmed('questions') ?? 0;
         $optionsByQuestion = $optionsFetcher->grouped();
+
+        // Read once, from the source: `ORPHAN_SECTION` needs to know which
+        // sections exist, and asking per question would be 29,142 queries to
+        // settle what 3,316 ids answer.
+        $checks = ValidationSuite::forQuestions(
+            array_fill_keys($source->table('sections')->pluck('id')->all(), true)
+        );
 
         $rows = $source->table('questions')
             ->select(['id', 'section_id', 'order', 'name', 'description', 'hint', 'created_at', 'updated_at', 'deleted_at'])
@@ -90,8 +111,25 @@ final class ImportQuestions implements ShouldQueue
 
             $maxId = max($maxId, (int) $row->id);
 
+            $question = new QuestionUnderImport(
+                sourceId: (int) $row->id,
+                sectionSourceId: $row->section_id === null ? null : (int) $row->section_id,
+                rawText: $rawText,
+                options: $options,
+                isSoftDeleted: $row->deleted_at !== null,
+            );
+
+            foreach ($checks as $check) {
+                if ($finding = $check->check($question)) {
+                    $errors->recordFinding($finding);
+                }
+            }
+
             if (count($batch) >= BatchUpsert::BATCH_SIZE) {
                 $this->flush($upsert, $recorder, $batch);
+                // Findings commit before the cursor moves past the rows they
+                // describe — a resumed run never reads those rows again.
+                $errors->flush();
                 $cursor->confirm('questions', $maxId);
                 $batch = [];
             }
@@ -99,8 +137,11 @@ final class ImportQuestions implements ShouldQueue
 
         if ($batch !== []) {
             $this->flush($upsert, $recorder, $batch);
+            $errors->flush();
             $cursor->confirm('questions', $maxId);
         }
+
+        $errors->flush();
     }
 
     /**

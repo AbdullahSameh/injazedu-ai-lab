@@ -361,23 +361,23 @@ continues; the mirror's broken rate equals the profiling run's.
 **Independent test**: import a fixture set holding one instance of each anomaly — thirteen codes
 appear, the batch completed, and nothing was repaired or dropped.
 
-- [ ] T066 [US4] `apps/lab/app/Support/Import/ImportErrorCode.php` — a **backed enum**, thirteen
+- [X] T066 [US4] `apps/lab/app/Support/Import/ImportErrorCode.php` — a **backed enum**, thirteen
   cases, each with a human-readable description. `ZERO_CORRECT` is `severity = error` — it affects a
   student now. **One source of truth**, read by both the console and `lab:import --help` (FR-042,
   FR-043, FR-044)
-- [ ] T067 [P] [US4] `apps/lab/app/Support/Import/Validators/` — the question-level checks:
+- [X] T067 [P] [US4] `apps/lab/app/Support/Import/Validators/` — the question-level checks:
   `MISSING_OPTIONS`, `EMPTY_STEM`, `ZERO_CORRECT`, `MULTI_CORRECT`, `STEM_IMAGE_ONLY`,
   `QUESTION_NO_SECTION`, `ORPHAN_SECTION` (FR-042)
-- [ ] T068 [P] [US4] `apps/lab/app/Support/Import/Validators/` — the option- and structure-level
+- [X] T068 [P] [US4] `apps/lab/app/Support/Import/Validators/` — the option- and structure-level
   checks: `DUPLICATE_OPTION_TEXT`, `OPTION_ORDER_TIE` (**options only** — `sections.order` and
   `questions.order` default to 1 and their ties are not defects, notes N6), `ORPHAN_QUIZ`,
   `CATEGORY_ORPHAN_PARENT`, `STIMULUS_NO_QUESTIONS` (FR-042)
-- [ ] T069 [P] [US4] `apps/lab/app/Support/Import/Validators/BrokenHtmlValidator.php` —
+- [X] T069 [P] [US4] `apps/lab/app/Support/Import/Validators/BrokenHtmlValidator.php` —
   `BROKEN_HTML` **must not stop the batch**: isolated, logged, run continues. The row is still copied
   faithfully (FR-043, FR-046)
-- [ ] T070 [US4] Wire the validators into the bank jobs through T041's recorder. **No check may
+- [X] T070 [US4] Wire the validators into the bank jobs through T041's recorder. **No check may
   repair, normalize, or drop a row** — anomalies are recorded beside faithful copies (FR-046)
-- [ ] T071 [P] [US4] `apps/lab/tests/Unit/Validators/` — one test per code, thirteen in all, each
+- [X] T071 [P] [US4] `apps/lab/tests/Unit/Validators/` — one test per code, thirteen in all, each
   proving the anomaly is detected **and** the row still copied. Plus: the `ZERO_CORRECT` rate among
   active questions equals query 3's result from T014 — a discrepancy means one of the two is wrong
   and blocks acceptance (FR-045, SC-013, SC-014)
@@ -393,23 +393,23 @@ appear, the batch completed, and nothing was repaired or dropped.
 **Independent test**: run the suite on a populated mirror; then delete one `assertCopyable()` call
 and confirm the suite goes red.
 
-- [ ] T072 [P] [US3] `apps/lab/tests/Feature/CopyGuardTest.php` — every ETL write site passes
+- [X] T072 [P] [US3] `apps/lab/tests/Feature/CopyGuardTest.php` — every ETL write site passes
   through `assertCopyable()`; **removing it from any one site fails this test**; copying a
   `profile_tables` table throws **by name** while reading a count from it still succeeds. `orders`
   is the sharpest case: legitimately readable for query 15, and a serious leak if ever copyable
   (notes N7, FR-026, FR-055, SC-010, SC-011)
-- [ ] T073 [P] [US3] `apps/lab/tests/Feature/NoUserIdAnywhereTest.php` — no column, no
+- [X] T073 [P] [US3] `apps/lab/tests/Feature/NoUserIdAnywhereTest.php` — no column, no
   `import_errors.context` payload, and no log line written by the ETL contains a `user_id`. The
   column assertion cannot see a JSONB payload, which is exactly where a leak would hide (FR-020,
   SC-009)
-- [ ] T074 [P] [US3] `apps/lab/tests/Feature/StatisticReproducibilityTest.php` — take one number
+- [X] T074 [P] [US3] `apps/lab/tests/Feature/StatisticReproducibilityTest.php` — take one number
   the console displays and recompute it from the raw mirror rows; the two must agree (FR-057,
   SC-016)
-- [ ] T075 [US3] Re-run `apps/lab/tests/Feature/ReadOnlyGuardTest.php`,
+- [X] T075 [US3] Re-run `apps/lab/tests/Feature/ReadOnlyGuardTest.php`,
   `SourceTableAllowlistTest.php` and `ForbiddenTableRefusalTest.php` **unmodified**. Each of the
   three write-blocking layers must still refuse alone. If any needed a change to pass, that is a
   finding, not a fix (FR-056, SC-012)
-- [ ] T076 [US3] `php artisan lab:health` — **10/10, exit 0**. Run it at the end of every phase, not
+- [X] T076 [US3] `php artisan lab:health` — **10/10, exit 0**. Run it at the end of every phase, not
   only here; it is the instrument, and 7.058 s cold is the baseline (FR-058, SC-017)
 
 **Checkpoint**: the non-negotiables in spec §11 are tested properties. None of them is accepted at
@@ -425,41 +425,41 @@ any other value.
 **Independent test**: open the console on a populated mirror and reach the underlying questions from
 every displayed count in one click, with the snapshot date visible on every screen.
 
-- [ ] T077 [US5] `apps/lab/app/Providers/Filament/AdminPanelProvider.php` — the **existing** panel
+- [X] T077 [US5] `apps/lab/app/Providers/Filament/AdminPanelProvider.php` — the **existing** panel
   becomes Arabic and RTL globally. **No second panel.** P0's health page keeps its English check
   names and values inside the RTL shell — technical identifiers and operator output stay English
   (FR-047)
-- [ ] T078 [P] [US5] `apps/lab/lang/ar/` — the console's Arabic strings. Technical identifiers
+- [X] T078 [P] [US5] `apps/lab/lang/ar/` — the console's Arabic strings. Technical identifiers
   (`payload_hash`, `answer_key_state`, the thirteen codes) stay English (FR-047)
-- [ ] T079 [US5] `apps/lab/app/Filament/Widgets/SnapshotHeader.php` — a fixed header on **every**
+- [X] T079 [US5] `apps/lab/app/Filament/Widgets/SnapshotHeader.php` — a fixed header on **every**
   screen: `snapshot_taken_at`, the row count, and the date of the last import run. No number is
   displayed without its frame (FR-048, SC-015)
-- [ ] T080 [P] [US5] `apps/lab/app/Filament/Resources/SourceQuestionResource.php` — the list, the
+- [X] T080 [P] [US5] `apps/lab/app/Filament/Resources/SourceQuestionResource.php` — the list, the
   filters, and the single-question view with its **ordered** options and derived correct answer.
   A/B/C/D letters are synthesized from `option_index` at render time and never stored (FR-050)
-- [ ] T081 [P] [US5] `apps/lab/app/Filament/Resources/SourceSectionResource.php` — sections with
+- [X] T081 [P] [US5] `apps/lab/app/Filament/Resources/SourceSectionResource.php` — sections with
   shared text, `stimulus_length` and `is_long_stimulus` (§8's basis)
-- [ ] T082 [P] [US5] `apps/lab/app/Filament/Resources/SourceQuizResource.php` and
+- [X] T082 [P] [US5] `apps/lab/app/Filament/Resources/SourceQuizResource.php` and
   `SourceCourseResource.php` — the navigation from course and quiz down to questions
-- [ ] T083 [US5] `apps/lab/app/Filament/Pages/Inventory.php` — the cards: total questions
+- [X] T083 [US5] `apps/lab/app/Filament/Pages/Inventory.php` — the cards: total questions
   (active / soft-deleted), by category, by course, by quiz, the option-count distribution,
   answer-key integrity, no-explanation, HTML, images, shared-text sections, media review.
   **All sourced from the mirror's own columns — never from `import_errors`**, so a no-op re-import
   cannot make a problem appear fixed (FR-049)
-- [ ] T084 [US5] `Inventory` — **every number is a link**: number → filtered list → the question
+- [X] T084 [US5] `Inventory` — **every number is a link**: number → filtered list → the question
   itself. This is a constitution VI requirement, not a nicety (FR-050, SC-015)
-- [ ] T085 [P] [US5] `apps/lab/app/Filament/Resources/ImportErrorResource.php` — filterable by code,
+- [X] T085 [P] [US5] `apps/lab/app/Filament/Resources/ImportErrorResource.php` — filterable by code,
   severity and source table. **Names the import run it is displaying** and defaults to the latest run
   that actually wrote rows, with earlier runs reachable — the log is history and history is not
   overwritten (FR-051)
-- [ ] T086 [US5] `apps/lab/app/Support/Suppression.php` + apply it wherever a group count renders:
+- [X] T086 [US5] `apps/lab/app/Support/Suppression.php` + apply it wherever a group count renders:
   `n < 10` publishes nothing, `n < 30` partially, `n ≥ 30` fully. Pinned here as a pattern before
   P3's numbers exist (FR-052)
-- [ ] T087 [US5] State the two limits the console cannot resolve, on the screens where they matter:
+- [X] T087 [US5] State the two limits the console cannot resolve, on the screens where they matter:
   media paths are **unverified**, and a missing answer row cannot distinguish "not answered" from
   "not shown" (`question_result.option_id` is NOT NULL). What cannot be known is not presented as
   known (FR-053)
-- [ ] T088 [US5] Confirm P0's health page still reports 10/10 inside the now-RTL panel — the
+- [X] T088 [US5] Confirm P0's health page still reports 10/10 inside the now-RTL panel — the
   direction changed, the operator output did not (FR-047, SC-017)
 
 **Checkpoint**: the mirror is visible, navigable, and honest about what it cannot say.
@@ -470,18 +470,18 @@ every displayed count in one click, with the snapshot date visible on every scre
 
 **The only documents this project produces**, each because something outside the code needs it.
 
-- [ ] T089 [P] `README.md` — a P1 section: the two commands and the one screen. Following it from a
+- [X] T089 [P] `README.md` — a P1 section: the two commands and the one screen. Following it from a
   clean Lab database must reach a populated inventory console (FR-059, SC-018)
-- [ ] T090 [P] `apps/lab/.env.example` — any new key, listed with **no value** (FR-059)
-- [ ] T091 [P] `docs/runbooks/snapshot.md` — record the fixed-copy decision **once**: the snapshot is
+- [X] T090 [P] `apps/lab/.env.example` — any new key, listed with **no value** (FR-059)
+- [X] T091 [P] `docs/runbooks/snapshot.md` — record the fixed-copy decision **once**: the snapshot is
   2026-08-07, there is no refresh, and no gate anywhere blocks on its age (FR-060)
-- [ ] T092 `CLAUDE.md` and `AGENTS.md` — P1's measured facts, **byte-identical in both**. Verify with
+- [X] T092 `CLAUDE.md` and `AGENTS.md` — P1's measured facts, **byte-identical in both**. Verify with
   `diff CLAUDE.md AGENTS.md` (FR-060)
-- [ ] T093 Final acceptance run: `php artisan test`, `php artisan lab:health` (10/10, exit 0), and
+- [X] T093 Final acceptance run: `php artisan test`, `php artisan lab:health` (10/10, exit 0), and
   the twenty-one success criteria in `spec.md` each confirmed or explicitly recorded as not met with
   a reason. **Assert zero rows written to `injazedu`** and zero rows from `profile_tables` stored
   (SC-012, SC-017, SC-021)
-- [ ] T094 Confirm **no new runbook, ADR, acceptance record, or handover document** was created —
+- [X] T094 Confirm **no new runbook, ADR, acceptance record, or handover document** was created —
   and that `docs/reports/p1-profiling.md` is generated, not hand-edited. If a document was written,
   it needs a reason beyond "the process asks for one" (FR-060, SC-021)
 

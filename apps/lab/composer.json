@@ -47,7 +47,11 @@
         ],
         "test": [
             "@php artisan config:clear --ansi @no_additional_args",
-            "@php artisan test"
+            "@php artisan test --testsuite=Unit,Feature"
+        ],
+        "test:mirror": [
+            "@php artisan config:clear --ansi @no_additional_args",
+            "@php artisan test --testsuite=MirrorValidation"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

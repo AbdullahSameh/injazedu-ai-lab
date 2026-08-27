@@ -30,11 +30,6 @@ class BatchUpsertIdempotencyTest extends TestCase
     {
         parent::setUp();
 
-        // phpunit.xml points DB_DATABASE at :memory: for the sqlite default;
-        // the Lab schema lives in the real pgsql database, so restore it.
-        config(['database.connections.pgsql.database' => 'injazedu_lab']);
-        DB::purge('pgsql');
-
         Schema::connection('pgsql')->dropIfExists(self::PROBE);
         DB::connection('pgsql')->statement(sprintf(
             'CREATE TABLE %s (

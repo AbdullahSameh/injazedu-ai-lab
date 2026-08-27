@@ -541,7 +541,15 @@ every displayed count in one click, with the snapshot date visible on every scre
   and values unchanged inside the RTL shell, and `lab:health` on the CLI is untouched. No second
   panel is created.
 - **FR-048**: Every screen MUST carry a fixed header showing `snapshot_taken_at`, the row count, and
-  the date of the last import run.
+  the date of the last import run. **Amended 2026-08-27 (operator decision)**: the header is
+  Dashboard-only, not every screen. The original render hook duplicated it on every Resource page
+  (above the breadcrumbs) and, on the Dashboard itself, a *second* time there too — Filament
+  auto-renders every discovered widget, `SnapshotHeader` included, as the page's own content grid,
+  so the explicit render-hook mount was always a redundant second copy on the Dashboard as well. One
+  instance remains: the Dashboard's own widget-grid render. Resource pages no longer show
+  `snapshot_taken_at` at all — SC-015's "no screen shows a number without `snapshot_taken_at` beside
+  it" is knowingly no longer met outside the Dashboard; the operator traded that guarantee for not
+  having the header duplicated across the console.
 - **FR-049**: The console MUST present, sourced from the **mirror's own columns** — never from the
   source, and never from `import_errors`, so that a no-op re-import cannot make a problem appear to
   have been fixed: total
@@ -654,7 +662,8 @@ every displayed count in one click, with the snapshot date visible on every scre
   severity and table, with the batch completing in every case.
 - **SC-014**: The broken-question rate in the mirror equals the rate in the profiling run.
 - **SC-015**: Every number on the console reaches the rows it was built from in one click, and no
-  screen shows a number without `snapshot_taken_at` beside it.
+  screen shows a number without `snapshot_taken_at` beside it. **Amended 2026-08-27**: the second
+  half no longer holds outside the Dashboard — see FR-048's amendment.
 - **SC-016**: At least one console statistic is reproduced from raw rows in a test.
 - **SC-017**: `lab:health` passes 10/10 with exit 0 at the end of every phase.
 - **SC-018**: Following the README from a clean Lab database reaches a populated inventory console.

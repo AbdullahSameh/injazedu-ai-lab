@@ -1,10 +1,9 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\Validation;
 
 use App\Support\Derive\PayloadHasher;
 use Illuminate\Support\Facades\DB;
-use Tests\TestCase;
 
 /**
  * Constitution §V: "Every statistical output must be reproducible from raw

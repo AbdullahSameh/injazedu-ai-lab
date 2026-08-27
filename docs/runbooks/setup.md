@@ -60,3 +60,19 @@ curl -s http://127.0.0.1:11434/api/ps       # both runners resident
 
 `scripts/verify-model-runtime.sh --with-memory` does exactly this and reports both residents.
 When memory feels tight, see `docs/runbooks/memory-check.md` — there is no gate to consult.
+
+## 6. Tests need `injazedu_lab_test` — a real database, not sqlite
+
+`apps/lab/tests/` runs against a dedicated, disposable `injazedu_lab_test` Postgres database, never
+the real `injazedu_lab` (ADR-023, after a destructive command wiped real imported data). It is a
+second database in the same container, so it does not exist yet on a fresh clone or after the
+volume is recreated — create it once:
+
+```sh
+docker exec injazedu_lab_postgres psql -U lab -d injazedu_lab -c "CREATE DATABASE injazedu_lab_test OWNER lab"
+docker exec injazedu_lab_postgres psql -U lab -d injazedu_lab_test -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+```
+
+`apps/lab/.env.testing` (gitignored, same shape as `.env`) must exist and point every `DB_*` key at
+it — `composer test` fails immediately without it. `RefreshDatabase` (`tests/TestCase.php`) migrates
+it automatically; no manual `migrate` step is needed after this.

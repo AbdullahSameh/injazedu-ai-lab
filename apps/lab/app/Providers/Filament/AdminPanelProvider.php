@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\SetLocale;
+use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -10,6 +12,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -41,10 +44,12 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
+            ->userMenuItems($this->localeMenuItems())
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
+                SetLocale::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,
@@ -55,5 +60,25 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    /**
+     * One item per locale the viewer is NOT currently using — switching is
+     * a toggle, not a picker with a redundant "you are here" entry. Arabic
+     * stays the default (config('app.locale')); this only ever changes
+     * what the current session sees (App\Http\Middleware\SetLocale).
+     *
+     * @return array<int, Action>
+     */
+    private function localeMenuItems(): array
+    {
+        return collect(config('lab.locales'))
+            ->map(fn (string $label, string $locale): Action => Action::make("locale-{$locale}")
+                ->label($label)
+                ->icon(Heroicon::OutlinedLanguage)
+                ->url(fn (): string => route('locale.switch', $locale))
+                ->visible(fn (): bool => app()->getLocale() !== $locale))
+            ->values()
+            ->all();
     }
 }

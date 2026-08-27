@@ -1,6 +1,6 @@
 # InjazEdu AI Assessment & Engagement Lab — Constitution
 
-**Version**: 2.3.0 | **Last amended**: 2026-08-26
+**Version**: 2.4.0 | **Last amended**: 2026-08-27
 
 This governs `injazedu-ai-lab`: a **local-first, single-developer** AI laboratory built around the
 production platform `injazedu.co`. It is binding on every spec, plan, task list, and commit here.
@@ -163,6 +163,14 @@ pipeline — with one exception: reviewer decisions, which exist nowhere else. T
 backup requirement**; this machine is a development environment and the snapshot is disposable
 (amended 2026-08-23). Durability for reviewer decisions is a go-live concern, handled when the Lab
 runs against a real database on real infrastructure — not a local one.
+
+**Reproducible infrastructure is not disposable data (amended 2026-08-27).** That the *schema* can
+be recreated from `migrate` does not make the manually-imported mirror sitting in `injazedu_lab`
+something to reset on a whim — re-importing it costs real time the operator does not want to pay
+repeatedly. Automated tests run against an isolated, genuinely disposable database
+(`injazedu_lab_test`) and never the real one; a technical guard refuses `migrate:fresh` and other
+destructive operations outside it. Tests that must read the real mirror do so read-only, outside
+the default test run.
 
 ---
 
