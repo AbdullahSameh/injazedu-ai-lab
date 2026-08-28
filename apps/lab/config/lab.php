@@ -231,4 +231,152 @@ return [
         'en' => 'English',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Duplicate intelligence (spec 006-p2-duplicate-intelligence)
+    |--------------------------------------------------------------------------
+    |
+    | `lab:dedup`'s tuning surface: the candidate-generation floors, the
+    | normalization rules (FR-139 – FR-141), and the calibration/triage
+    | constants (FR-144 – FR-150). Every threshold here is either measured
+    | (notes.md N1/N2/N10) or explicitly a starting value tuned later by a
+    | named task — see the per-key notes.
+    |
+    */
+
+    'dedup' => [
+
+        /*
+        | Candidate generation (FR-043 – FR-049).
+        */
+        'trgm_floor' => 0.55,
+        'top_k' => 20,
+        'chunk_size' => 5000,
+
+        /*
+        | Pair-derived closure size guard (FR-119, plan.md decision 4/5).
+        | Applies ONLY to closures built from duplicate_candidates pairs
+        | (Phase 9's AutoClusterHighBand) — NEVER to hash clusters, where a
+        | legitimate 538-member group exists (median 3, p99 15). This is a
+        | starting value; T092 logs the real pair-derived component-size
+        | distribution before it is tuned.
+        */
+        'closure_size_guard' => 50,
+
+        /*
+        | The standing conflict-backlog queue (FR-151, FR-152). Soft — the
+        | console never blocks on it, it only says what remains per tier.
+        */
+        'daily_review_cap' => 10,
+
+        /*
+        | Verdict retry/rationing (FR-122 – FR-124, FR-080).
+        */
+        'verdict_max_attempts' => 3,
+
+        /*
+        | Projected uncertain-band ceiling (FR-062, FR-063). If the
+        | calibrated thresholds would put more than this many pairs in
+        | `band = 'uncertain'` across the full candidate pool, T_low is
+        | raised and recalibrated — logged, never silent.
+        */
+        'uncertain_band_ceiling' => 8000,
+
+        /*
+        | Target size of the labelled evaluation set once calibration
+        | settles (informational — the real ceiling is eval_wave_sizes'
+        | cumulative sum, see calibration.eval_cumulative_ceiling below).
+        */
+        'verdict_target_pairs' => 5000,
+
+        /*
+        | Generated reports (FR-058, FR-066, FR-091, FR-092) — pure
+        | functions over stored rows, regenerated identically, never
+        | hand-edited.
+        */
+        'report_paths' => [
+            'eval_set' => base_path('../../docs/reports/p2-eval-set.md'),
+            'calibration' => base_path('../../docs/reports/p2-calibration.md'),
+            'conflicting_duplicates' => base_path('../../docs/reports/p2-conflicting-duplicates.md'),
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Normalization (FR-139 – FR-141, FR-155) — CLOSED at human gate H
+        | (T003), 2026-08-29, against a 35-row sample of the real mirror
+        |----------------------------------------------------------------------
+        |
+        | Option-label alphabets: BOTH scripts are required, not optional.
+        | 3,604 active options begin with a Latin label against 1,200 with
+        | an Arabic one, and 9.9% of the bank has no Arabic character at all
+        | (notes.md N10) — an Arabic-only stripper would miss the majority
+        | case. Stripping is anchored to the leading marker only
+        | (`^\s* LABEL \s* DELIM \s+`) and never touches a letter inside the
+        | text (FR-139).
+        |
+        | ArabicNormalizer::search() MUST run option-label stripping BEFORE
+        | Alef-form normalization (FR-011, amended 2026-08-29) — this list's
+        | four Hamza-Alef forms (أ إ آ ا) must still be distinct when the
+        | stripper runs, or a labelled أ/إ/آ option is silently missed once
+        | Alef normalization has already folded it to bare ا. Alef-form
+        | normalization itself is scoped to أ/إ/آ → ا ONLY — ى is never
+        | folded, in this layer or the fuzzy one below.
+        |
+        */
+        'option_label_alphabets' => [
+            'ar' => ['أ', 'إ', 'آ', 'ا', 'ب', 'ج', 'د', 'هـ', 'ه'],
+            'la' => ['A', 'B', 'C', 'D', 'E', 'a', 'b', 'c', 'd', 'e'],
+            'digit' => ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '١', '٢', '٣', '٤', '٥'],
+        ],
+
+        'option_label_delimiters' => ['.', ')', '-', ':', '،', ','],
+
+        /*
+        | The fourth, explicitly-named recall-only form (FR-141). This fold
+        | MUST NEVER reach clean_text, search_text, question_text_hash,
+        | question_with_options_hash, media_fingerprint, any cluster key or
+        | any identity decision — it may only widen candidate recall.
+        | Constitution IV v2.5.0 admits exactly this and no more. Measured
+        | yield at the stem grain: ~12 additional stems collapse (notes.md
+        | N10) — small and cheap, which is why `ى/ي` is deliberately not
+        | shipped alongside it.
+        |
+        | CLOSED at gate H (2026-08-29): no further entries without a
+        | measured yield on real data AND a dedicated isolation test
+        | (FR-141, FR-143) — this is not a place to add "obvious" typo
+        | tolerances on judgement alone.
+        */
+        'fuzzy_fold_enabled' => true,
+        'fuzzy_fold_map' => [
+            'ة' => 'ه',
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Progressive calibration (FR-144 – FR-146) and triage (FR-150)
+        |----------------------------------------------------------------------
+        */
+        'eval_wave_sizes' => [100, 100, 100, 100],
+        'eval_ci_confidence' => 0.95,
+        'eval_positive_class_floor' => 30,
+        'eval_cumulative_ceiling' => 400,
+
+        /*
+        | Off by default (FR-147 – FR-149). When enabled, the /verdict
+        | endpoint is called once per eval pair and the result is stored
+        | ONLY in duplicate_eval_pairs.ai_* — never human_relation, never a
+        | candidate row, never the positive class.
+        */
+        'ai_prelabel_enabled' => false,
+
+        /*
+        | Conflict-backlog priority tiers (FR-150). Computed by SQL from the
+        | measured affected_student_count distribution at these percentiles
+        | — the cut values themselves are logged with each run, not fixed
+        | here. Measured 2026-08-28: p50=141, p75=282, p90=686, max=6,966
+        | (notes.md N10).
+        */
+        'conflict_tier_percentiles' => [0.50, 0.75, 0.90],
+    ],
+
 ];

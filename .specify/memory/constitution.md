@@ -1,6 +1,6 @@
 # InjazEdu AI Assessment & Engagement Lab — Constitution
 
-**Version**: 2.4.0 | **Last amended**: 2026-08-27
+**Version**: 2.5.0 | **Last amended**: 2026-08-28
 
 This governs `injazedu-ai-lab`: a **local-first, single-developer** AI laboratory built around the
 production platform `injazedu.co`. It is binding on every spec, plan, task list, and commit here.
@@ -193,9 +193,12 @@ the default test run.
   creates no duplicates.
 - **Anomalies are recorded, not swallowed.** Import and validation errors go to a visible errors
   table and the batch continues. A silent `try/catch` is a defect.
-- **Arabic text is layered and never destroyed**: `raw_text` is immutable, `clean_text` is technical
-  cleanup only, `search_text` is the comparison form. Meaning-changing normalization (notably
-  `ة → ه`) is forbidden.
+- **Arabic text is layered and never destroyed** (narrowed 2026-08-28): `raw_text` is immutable,
+  `clean_text` is technical cleanup only, `search_text` is the comparison form. Meaning-changing
+  normalization (notably `ة → ه`) is forbidden in `clean_text`, `search_text`, and in **every hash,
+  cluster key, or identity decision derived from them**. A meaning-folding form may exist **only** as
+  an explicitly-named recall aid that proposes candidates for human or model judgement — never as
+  evidence of identity, and never the basis of an `exact_duplicate`.
 - **Services are added only when justified today.** "We will need it later" is not a justification.
 
 ---

@@ -1,22 +1,48 @@
 <!-- SPECKIT START -->
-**P0 is complete and closed.** Next up: **P1 — Production Profiling & Question Mirror**, delivered
-as **one** Spec Kit feature (`005-p1-profiling-and-question-mirror`) on branch
-`p1/profiling-and-mirror-schema`. Not four increments — one spec covers the whole project.
+**P0 and P1 are complete and closed.** Current: **P2 — Arabic Normalization & Duplicate
+Intelligence**, delivered as **one** Spec Kit feature (`006-p2-duplicate-intelligence`) on branch
+`p2/duplicate-intelligence`. Eleven phases, one spec.
 
 Read before writing code for it:
 
-- **Spec Kit artefacts (current, read first)**: `specs/005-p1-profiling-and-question-mirror/` —
-  `spec.md` (63 FRs, 5 clarifications), `plan.md` (nine implementation groups, one open question),
-  `data-model.md` (the fifteen tables, checked against the schema), `notes.md` (Phase 0 findings),
-  `contracts/profiling-results.md`
-- Project plan: `docs/plans/project/1/p1-production-profiling-and-question-mirror.md` (v2.0, leaned
-  2026-08-25) — ten phases, the mirror tables, the derivation core, the ETL, the console
-- Program §16: `docs/plans/core/final_injazedu_ai_assessment_engagement_lab_full_plan.md`
+- **Spec Kit artefacts (current, read first)**: `specs/006-p2-duplicate-intelligence/` —
+  `spec.md` (138 FRs, 5 clarifications), `plan.md` (eleven groups, **no open questions**),
+  `notes.md` (nine Phase 0 findings — **N1 and N2 corrected the project plan's numbers**),
+  `data-model.md` (the eight tables), `contracts/verdict.md`
+- Project plan: `docs/plans/project/2/p2-duplicate-intelligence.md` (v1.0, 2026-08-27) — the cascade,
+  the six decisions, the eleven phases
+- Program §17: `docs/plans/core/final_injazedu_ai_assessment_engagement_lab_full_plan.md`
 - Production schema: `docs/schema/injazedu-db-schema.md` — **where plan and schema disagree, the
   schema wins**
-- Contract still in force: `specs/004-handover-and-p1-readiness/contracts/source-access-and-stack.md`
-  — **P1's ETL is the second party**: it calls `assertCopyable()` before every write
+- P1 record (implemented, do not rebuild): `specs/005-p1-profiling-and-question-mirror/`,
+  `docs/plans/project/1/p1-production-profiling-and-question-mirror.md`
 - P0 record (implemented, do not rebuild): `specs/001…004/`, `docs/plans/project/0/p0-ai-lab-foundation.md`
+
+## P2's measured numbers — every estimate that starts from 28,747 is roughly twice too large
+
+Measured 2026-08-27/28 against the loaded mirror, fixed 2026-08-07 snapshot:
+
+```text
+28,747 active questions (29,142 with soft-deleted)  ->  11,416 distinct RAW texts
+                                                        11,094 distinct NORMALIZED stems
+                                                        12,969 distinct stem + options
+4,689 duplicate groups · 22,020 questions · 17,331 redundant rows (60.3%)
+   4,558 with no image member ·  928 conflicting (20.4%)
+     131 with an image member ·   96 conflicting (73.3%)  <- 3.6x, the media boundary rule
+largest duplicate group: 538 members (median 3, p99 15) — a true finding, never a chaining artefact
+```
+
+**The embedding budget is ~24,063 calls, not 2 x 11,416** — each embedding deduplicates by its own
+hash (stem by text hash, full by stem+options hash), and those grains differ. 58% saved against
+57,494. See `notes.md` N1; the project plan's 11,416 figure is the distinct *raw text* count and is
+the key for neither embedding.
+
+**The conflict backlog is 928 groups, ~31-77 trainer hours** — not the plan's ~1,125 / 37-94, whose
+group tallies did not sum. See `notes.md` N2.
+
+`answer_key_state` values are **`single_correct` · `broken_no_key` · `multi_key`** — the project
+plan's `single_key` does not exist. `sections.description` is empty in all 3,316 rows, so the passage
+track is inert and its table is asserted empty rather than covered.
 
 ## The data boundary
 
@@ -138,7 +164,7 @@ items.
 
 ## Project governance
 
-Before writing any spec, plan, or code, read `.specify/memory/constitution.md` (v2.2.0). It is
+Before writing any spec, plan, or code, read `.specify/memory/constitution.md` (v2.5.0). It is
 binding and short.
 
 **Principle I is narrow (2026-08-25).** Stop and ask only for: a change to a data boundary or a

@@ -42,6 +42,15 @@ enum ImportErrorCode: string
     case STIMULUS_NO_QUESTIONS = 'STIMULUS_NO_QUESTIONS';
     case CATEGORY_ORPHAN_PARENT = 'CATEGORY_ORPHAN_PARENT';
 
+    /** P2 (spec 006-p2-duplicate-intelligence): a truncated embedding input (FR-039, notes.md N4). */
+    case EMBEDDING_TRUNCATED = 'EMBEDDING_TRUNCATED';
+
+    /** P2: an embedding call failed — 502 zero_norm_vector or 503 ollama_unreachable (FR-040). */
+    case EMBEDDING_FAILED = 'EMBEDDING_FAILED';
+
+    /** P2: a verdict call exhausted its retry budget and is terminally failed (FR-122 – FR-124). */
+    case VERDICT_FAILED = 'VERDICT_FAILED';
+
     public const SEVERITY_ERROR = 'error';
 
     public const SEVERITY_WARNING = 'warning';
@@ -62,7 +71,14 @@ enum ImportErrorCode: string
             self::BROKEN_HTML,
             self::STEM_IMAGE_ONLY,
             self::STIMULUS_NO_QUESTIONS,
-            self::CATEGORY_ORPHAN_PARENT => self::SEVERITY_WARNING,
+            self::CATEGORY_ORPHAN_PARENT,
+
+            // P2's three codes are pipeline-processing failures, not
+            // question-content defects — none of them affects a student
+            // sitting the item right now, unlike the thirteen above.
+            self::EMBEDDING_TRUNCATED,
+            self::EMBEDDING_FAILED,
+            self::VERDICT_FAILED => self::SEVERITY_WARNING,
         };
     }
 
@@ -82,6 +98,9 @@ enum ImportErrorCode: string
             self::STEM_IMAGE_ONLY => 'The question text is an image with no words — it cannot be read, searched, or embedded as text.',
             self::STIMULUS_NO_QUESTIONS => 'The section carries shared stimulus text but has no live questions using it.',
             self::CATEGORY_ORPHAN_PARENT => 'parent_id points at a category that does not exist. Copied as-is; the tree is shown incomplete rather than guessed.',
+            self::EMBEDDING_TRUNCATED => 'The embedding input exceeded the model context length and was silently truncated by the runtime; the vector was still computed and stored, flagged as truncated.',
+            self::EMBEDDING_FAILED => 'The embedding call failed (a zero-norm vector or an unreachable runtime) and no vector was stored for this attempt; the batch continued.',
+            self::VERDICT_FAILED => 'The verdict call exhausted its retry budget. The candidate pair is marked terminally failed and is never re-dispatched.',
         };
     }
 }

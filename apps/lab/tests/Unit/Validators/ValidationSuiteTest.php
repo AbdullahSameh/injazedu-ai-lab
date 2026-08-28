@@ -13,12 +13,31 @@ use PHPUnit\Framework\TestCase;
  * can exist and be wired nowhere. Either way the console shows a category
  * that can never fill, or an anomaly goes unrecorded — and neither shows up
  * as a failure anywhere else.
+ *
+ * P2 (spec 006-p2-duplicate-intelligence) added three codes —
+ * EMBEDDING_TRUNCATED, EMBEDDING_FAILED, VERDICT_FAILED — that are raised
+ * directly by job-level try/catch around an HTTP call, not by a
+ * declarative `ValidationSuite` check run over a row up front. They are
+ * exempt from `wiredCodes()` by design, not by omission: this test still
+ * pins the exemption list explicitly, so a fourteenth code with no check
+ * and no exemption still fails loudly.
  */
 class ValidationSuiteTest extends TestCase
 {
-    public function test_every_code_in_the_enum_has_a_check_behind_it(): void
+    /** Raised by job-level error handling, never by a ValidationSuite check — see class docblock. */
+    private const CODES_EXEMPT_FROM_A_WIRED_CHECK = [
+        ImportErrorCode::EMBEDDING_TRUNCATED,
+        ImportErrorCode::EMBEDDING_FAILED,
+        ImportErrorCode::VERDICT_FAILED,
+    ];
+
+    public function test_every_p1_code_in_the_enum_has_a_check_behind_it(): void
     {
+        $exempt = array_map(fn (ImportErrorCode $c): string => $c->value, self::CODES_EXEMPT_FROM_A_WIRED_CHECK);
+
         $declared = array_map(fn (ImportErrorCode $c): string => $c->value, ImportErrorCode::cases());
+        $declared = array_values(array_diff($declared, $exempt));
+
         $wired = array_map(fn (ImportErrorCode $c): string => $c->value, ValidationSuite::wiredCodes());
 
         sort($declared);
@@ -26,6 +45,21 @@ class ValidationSuiteTest extends TestCase
 
         $this->assertSame($declared, $wired);
         $this->assertCount(13, $wired, 'FR-042 names thirteen checks.');
+    }
+
+    public function test_the_enum_holds_no_code_that_is_neither_wired_nor_explicitly_exempt(): void
+    {
+        $wired = array_map(fn (ImportErrorCode $c): string => $c->value, ValidationSuite::wiredCodes());
+        $exempt = array_map(fn (ImportErrorCode $c): string => $c->value, self::CODES_EXEMPT_FROM_A_WIRED_CHECK);
+        $accountedFor = [...$wired, ...$exempt];
+
+        foreach (ImportErrorCode::cases() as $code) {
+            $this->assertContains(
+                $code->value,
+                $accountedFor,
+                "{$code->value} is neither wired to a ValidationSuite check nor listed in CODES_EXEMPT_FROM_A_WIRED_CHECK."
+            );
+        }
     }
 
     public function test_the_wired_list_matches_what_the_factories_actually_build(): void
