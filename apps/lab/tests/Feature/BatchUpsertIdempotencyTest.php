@@ -38,6 +38,10 @@ class BatchUpsertIdempotencyTest extends TestCase
                 source_system TEXT NOT NULL,
                 source_id BIGINT NOT NULL,
                 payload_hash CHAR(64) NOT NULL,
+                strict_hash CHAR(64),
+                fuzzy_hash CHAR(64),
+                normalizer_version TEXT,
+                fuzzy_rules_version TEXT,
                 UNIQUE (source_system, source_id)
             )', self::PROBE
         ));
@@ -61,6 +65,24 @@ class BatchUpsertIdempotencyTest extends TestCase
             'source_id' => $i,
             'payload_hash' => hash('sha256', $payload.$i),
         ], range(1, 5));
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function derivedRows(
+        string $strictHash = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        string $fuzzyHash = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        string $normalizerVersion = 'strict-v1',
+        string $fuzzyRulesVersion = 'fuzzy-v1',
+    ): array {
+        return [[
+            'source_system' => 'injazedu_production',
+            'source_id' => 1,
+            'payload_hash' => str_repeat('a', 64),
+            'strict_hash' => $strictHash,
+            'fuzzy_hash' => $fuzzyHash,
+            'normalizer_version' => $normalizerVersion,
+            'fuzzy_rules_version' => $fuzzyRulesVersion,
+        ]];
     }
 
     public function test_first_run_inserts_and_second_run_changes_nothing(): void
@@ -98,6 +120,55 @@ class BatchUpsertIdempotencyTest extends TestCase
 
         $this->assertSame(5, DB::connection('pgsql')->table(self::PROBE)->count());
         $this->assertSame('b', DB::connection('pgsql')->table(self::PROBE)->value('payload'));
+    }
+
+    public function test_derived_upsert_updates_an_existing_row_when_only_one_strict_or_fuzzy_field_changes(): void
+    {
+        $upsert = app(BatchUpsert::class);
+        $comparisonColumns = ['strict_hash', 'fuzzy_hash', 'normalizer_version', 'fuzzy_rules_version'];
+
+        $first = $upsert->runDerived(self::PROBE, $this->derivedRows(), ['source_system', 'source_id'], $comparisonColumns);
+        $this->assertSame(['inserted' => 1, 'updated' => 0, 'unchanged' => 0], $first);
+
+        $fuzzyHashOnly = $upsert->runDerived(
+            self::PROBE,
+            $this->derivedRows(fuzzyHash: str_repeat('b', 64)),
+            ['source_system', 'source_id'],
+            $comparisonColumns,
+        );
+        $this->assertSame(['inserted' => 0, 'updated' => 1, 'unchanged' => 0], $fuzzyHashOnly);
+        $this->assertSame(str_repeat('a', 64), DB::connection('pgsql')->table(self::PROBE)->value('strict_hash'));
+        $this->assertSame(str_repeat('b', 64), DB::connection('pgsql')->table(self::PROBE)->value('fuzzy_hash'));
+
+        $strictHashOnly = $upsert->runDerived(
+            self::PROBE,
+            $this->derivedRows(strictHash: str_repeat('c', 64), fuzzyHash: str_repeat('b', 64)),
+            ['source_system', 'source_id'],
+            $comparisonColumns,
+        );
+        $this->assertSame(['inserted' => 0, 'updated' => 1, 'unchanged' => 0], $strictHashOnly);
+        $this->assertSame(str_repeat('c', 64), DB::connection('pgsql')->table(self::PROBE)->value('strict_hash'));
+        $this->assertSame(str_repeat('b', 64), DB::connection('pgsql')->table(self::PROBE)->value('fuzzy_hash'));
+        $this->assertSame('strict-v1', DB::connection('pgsql')->table(self::PROBE)->value('normalizer_version'));
+        $this->assertSame('fuzzy-v1', DB::connection('pgsql')->table(self::PROBE)->value('fuzzy_rules_version'));
+
+        $strictVersionOnly = $upsert->runDerived(
+            self::PROBE,
+            $this->derivedRows(strictHash: str_repeat('c', 64), fuzzyHash: str_repeat('b', 64), normalizerVersion: 'strict-v2'),
+            ['source_system', 'source_id'],
+            $comparisonColumns,
+        );
+        $this->assertSame(['inserted' => 0, 'updated' => 1, 'unchanged' => 0], $strictVersionOnly);
+        $this->assertSame('strict-v2', DB::connection('pgsql')->table(self::PROBE)->value('normalizer_version'));
+
+        $fuzzyVersionOnly = $upsert->runDerived(
+            self::PROBE,
+            $this->derivedRows(strictHash: str_repeat('c', 64), fuzzyHash: str_repeat('b', 64), normalizerVersion: 'strict-v2', fuzzyRulesVersion: 'fuzzy-v2'),
+            ['source_system', 'source_id'],
+            $comparisonColumns,
+        );
+        $this->assertSame(['inserted' => 0, 'updated' => 1, 'unchanged' => 0], $fuzzyVersionOnly);
+        $this->assertSame('fuzzy-v2', DB::connection('pgsql')->table(self::PROBE)->value('fuzzy_rules_version'));
     }
 
     public function test_the_write_path_refuses_a_table_that_is_not_copyable(): void

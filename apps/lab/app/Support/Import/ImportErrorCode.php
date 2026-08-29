@@ -3,8 +3,8 @@
 namespace App\Support\Import;
 
 /**
- * The thirteen validation codes (FR-042, FR-044, data-model.md §4) — **one**
- * enumeration, so a code has one meaning everywhere it is shown. The console
+ * The thirteen validation codes and four P2 pipeline codes (FR-042, FR-044,
+ * data-model.md §4) — **one** enumeration, so a code has one meaning everywhere it is shown. The console
  * and `lab:import --help` both read this and nothing else; a second list of
  * these strings anywhere is a defect, because the two would drift and the
  * operator would have no way to tell which was current.
@@ -19,7 +19,7 @@ namespace App\Support\Import;
  *     is broken for a student this minute.
  *
  * `info` exists in the column's domain and is deliberately unused: none of
- * the thirteen is merely informational, and inventing a use for it would
+ * these codes is merely informational, and inventing a use for it would
  * make severity a shrug rather than a judgement.
  *
  * **No code repairs anything** (FR-046). These name what was found; the
@@ -51,6 +51,9 @@ enum ImportErrorCode: string
     /** P2: a verdict call exhausted its retry budget and is terminally failed (FR-122 – FR-124). */
     case VERDICT_FAILED = 'VERDICT_FAILED';
 
+    /** P2: technical cleanup left a question with no searchable text (FR-027). */
+    case EMPTY_SEARCH_TEXT = 'EMPTY_SEARCH_TEXT';
+
     public const SEVERITY_ERROR = 'error';
 
     public const SEVERITY_WARNING = 'warning';
@@ -73,12 +76,13 @@ enum ImportErrorCode: string
             self::STIMULUS_NO_QUESTIONS,
             self::CATEGORY_ORPHAN_PARENT,
 
-            // P2's three codes are pipeline-processing failures, not
+            // P2's four codes are pipeline-processing failures, not
             // question-content defects — none of them affects a student
-            // sitting the item right now, unlike the thirteen above.
+            // sitting the item right now, unlike the content-validation codes above.
             self::EMBEDDING_TRUNCATED,
             self::EMBEDDING_FAILED,
-            self::VERDICT_FAILED => self::SEVERITY_WARNING,
+            self::VERDICT_FAILED,
+            self::EMPTY_SEARCH_TEXT => self::SEVERITY_WARNING,
         };
     }
 
@@ -101,6 +105,7 @@ enum ImportErrorCode: string
             self::EMBEDDING_TRUNCATED => 'The embedding input exceeded the model context length and was silently truncated by the runtime; the vector was still computed and stored, flagged as truncated.',
             self::EMBEDDING_FAILED => 'The embedding call failed (a zero-norm vector or an unreachable runtime) and no vector was stored for this attempt; the batch continued.',
             self::VERDICT_FAILED => 'The verdict call exhausted its retry budget. The candidate pair is marked terminally failed and is never re-dispatched.',
+            self::EMPTY_SEARCH_TEXT => 'Technical cleanup left this question with no searchable text. Its derived row and hashes were stored, and later grouping excludes it.',
         };
     }
 }

@@ -14,12 +14,12 @@ use PHPUnit\Framework\TestCase;
  * that can never fill, or an anomaly goes unrecorded — and neither shows up
  * as a failure anywhere else.
  *
- * P2 (spec 006-p2-duplicate-intelligence) added three codes —
- * EMBEDDING_TRUNCATED, EMBEDDING_FAILED, VERDICT_FAILED — that are raised
- * directly by job-level try/catch around an HTTP call, not by a
- * declarative `ValidationSuite` check run over a row up front. They are
+ * P2 (spec 006-p2-duplicate-intelligence) added four codes —
+ * EMBEDDING_TRUNCATED, EMBEDDING_FAILED, VERDICT_FAILED, EMPTY_SEARCH_TEXT —
+ * that are raised directly by job-level processing, not by a declarative
+ * `ValidationSuite` check run over a row up front. They are
  * exempt from `wiredCodes()` by design, not by omission: this test still
- * pins the exemption list explicitly, so a fourteenth code with no check
+ * pins the exemption list explicitly, so a further code with no check
  * and no exemption still fails loudly.
  */
 class ValidationSuiteTest extends TestCase
@@ -29,6 +29,7 @@ class ValidationSuiteTest extends TestCase
         ImportErrorCode::EMBEDDING_TRUNCATED,
         ImportErrorCode::EMBEDDING_FAILED,
         ImportErrorCode::VERDICT_FAILED,
+        ImportErrorCode::EMPTY_SEARCH_TEXT,
     ];
 
     public function test_every_p1_code_in_the_enum_has_a_check_behind_it(): void

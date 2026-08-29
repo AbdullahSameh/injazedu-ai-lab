@@ -2,6 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\Dedup\ClusterExactHashMatches;
+use App\Jobs\Dedup\DeriveQuestionTextLayers;
+use App\Jobs\Dedup\DeriveSectionTextLayers;
 use App\Models\DuplicateEvalPair;
 use App\Models\ImportRun;
 use App\Models\SourceSnapshot;
@@ -17,11 +20,9 @@ use Throwable;
  * size, and the same run recorder / resume cursor / error recorder / batch
  * upsert P1 already built (FR-102 — reused unchanged).
  *
- * **This is the Phase 1/2 skeleton.** `JOB_CLASSES_FOR_STEP` is deliberately
- * empty for every step today: each later phase wires its own steps in
- * (`--step=derive-text` in T036, `--step=hash-cluster` in T041, and so on)
- * — see the per-step comment for the task that will fill it in. Running an
- * unwired step is reported honestly rather than silently doing nothing.
+ * Phase 3 wires derivation and deterministic hash clustering; later phases
+ * fill the remaining steps. Running an unwired step is reported honestly
+ * rather than silently doing nothing.
  *
  * `SourceSnapshot::latestRun()` resolution and `ran_via` recording follow
  * `LabImport` exactly (notes.md N6): both `import_runs` columns are
@@ -82,6 +83,12 @@ final class LabDedup extends Command
             return self::FAILURE;
         }
 
+        if ($this->option('chunk') !== null && (int) $this->option('chunk') < 1) {
+            $this->error('--chunk must be a positive integer.');
+
+            return self::FAILURE;
+        }
+
         $snapshot = SourceSnapshot::latestRun()->first();
 
         if ($snapshot === null) {
@@ -107,7 +114,7 @@ final class LabDedup extends Command
             if ($step === 'calibrate' && ! $this->calibrationLabelsReady()) {
                 $this->info(
                     "Stopping before 'calibrate': wave 1 calibration labels are not complete yet ".
-                    "(human gate A). Run --step=eval-sample, label the wave through the screen, ".
+                    '(human gate A). Run --step=eval-sample, label the wave through the screen, '.
                     'then re-run --step=calibrate.'
                 );
 
@@ -177,8 +184,41 @@ final class LabDedup extends Command
         ));
 
         try {
+            $deriveCounts = [];
+            $hashClusterCounts = null;
             foreach ($jobClasses as $jobClass) {
-                Bus::dispatchSync(new $jobClass($run->id));
+                $before = (int) $recorder->run()->fresh()->rows_read;
+                $job = $step === 'derive-text'
+                    ? new $jobClass($run->id, $this->chunkSize())
+                    : new $jobClass($run->id);
+                // A ShouldQueue job sent through dispatchSync() returns the
+                // sync queue status code, not handle()'s result. The hash
+                // step needs that result to report its three produced counts.
+                $result = $step === 'hash-cluster'
+                    ? Bus::dispatchNow($job)
+                    : Bus::dispatchSync($job);
+                $deriveCounts[] = (int) $recorder->run()->fresh()->rows_read - $before;
+
+                if ($step === 'hash-cluster' && is_array($result)) {
+                    $hashClusterCounts = $result;
+                }
+            }
+
+            if ($step === 'derive-text') {
+                $this->info(sprintf(
+                    'Derived text: %d question(s), %d section(s).',
+                    $deriveCounts[0] ?? 0,
+                    $deriveCounts[1] ?? 0,
+                ));
+            }
+
+            if ($step === 'hash-cluster') {
+                $this->info(sprintf(
+                    'Hash clustering: %d exact cluster(s), %d formatting candidate(s). Orthographic candidates: %d.',
+                    $hashClusterCounts['exact_clusters'] ?? 0,
+                    $hashClusterCounts['formatting_candidates'] ?? 0,
+                    $hashClusterCounts['orthographic_candidates'] ?? 0,
+                ));
             }
 
             $recorder->finish('completed');
@@ -199,7 +239,8 @@ final class LabDedup extends Command
     {
         return match ($step) {
             // Wired in Phase 3, T036/T041.
-            'derive-text', 'hash-cluster' => [],
+            'derive-text' => [DeriveQuestionTextLayers::class, DeriveSectionTextLayers::class],
+            'hash-cluster' => [ClusterExactHashMatches::class],
             // Wired in Phase 5, T053/T065.
             'embed', 'candidates' => [],
             // Wired in Phase 6, T070/T080.
@@ -233,6 +274,11 @@ final class LabDedup extends Command
         return (clone $wave1)->exists() && (clone $wave1)->whereNull('human_relation')->doesntExist();
     }
 
+    private function chunkSize(): ?int
+    {
+        return $this->option('chunk') === null ? null : (int) $this->option('chunk');
+    }
+
     public function getHelp(): string
     {
         $lines = [
@@ -258,6 +304,7 @@ final class LabDedup extends Command
         if (enum_exists(ImportErrorCode::class)) {
             $lines[] = '';
             $lines[] = 'Error codes this pipeline can add to import_errors:';
+            $lines[] = sprintf('  %-24s %s', ImportErrorCode::EMPTY_SEARCH_TEXT->value, ImportErrorCode::EMPTY_SEARCH_TEXT->description());
             $lines[] = sprintf('  %-24s %s', ImportErrorCode::EMBEDDING_TRUNCATED->value, ImportErrorCode::EMBEDDING_TRUNCATED->description());
             $lines[] = sprintf('  %-24s %s', ImportErrorCode::EMBEDDING_FAILED->value, ImportErrorCode::EMBEDDING_FAILED->description());
             $lines[] = sprintf('  %-24s %s', ImportErrorCode::VERDICT_FAILED->value, ImportErrorCode::VERDICT_FAILED->description());

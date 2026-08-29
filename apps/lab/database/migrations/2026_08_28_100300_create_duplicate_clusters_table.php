@@ -45,6 +45,8 @@ return new class extends Migration
             $table->index('status');
             $table->index('source_layer');
             $table->index('priority_tier');
+            // All-ASC: Laravel's index() cannot express a direction. Rebuilt with
+            // the trailing column DESC by 2026_08_29_100000, per FR-089.
             $table->index(['status', 'priority_tier', 'affected_student_count']);
         });
     }

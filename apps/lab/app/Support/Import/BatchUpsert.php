@@ -66,7 +66,7 @@ final class BatchUpsert
      * @param  list<string>  $conflictKey
      * @return array{inserted: int, updated: int, unchanged: int}
      */
-    public function runDerived(string $table, array $rows, array $conflictKey, string $hashColumn): array
+    public function runDerived(string $table, array $rows, array $conflictKey, string|array $hashColumn): array
     {
         return $this->write($table, $rows, $conflictKey, $hashColumn);
     }
@@ -76,7 +76,7 @@ final class BatchUpsert
      * @param  list<string>  $conflictKey
      * @return array{inserted: int, updated: int, unchanged: int}
      */
-    private function write(string $table, array $rows, array $conflictKey, string $hashColumn): array
+    private function write(string $table, array $rows, array $conflictKey, string|array $hashColumn): array
     {
         $mirrorTable = $table;
 
@@ -87,6 +87,7 @@ final class BatchUpsert
         }
 
         $columns = array_keys($rows[0]);
+        $comparisonColumns = is_array($hashColumn) ? $hashColumn : [$hashColumn];
         $updatable = array_values(array_diff($columns, $conflictKey));
 
         $placeholders = '('.implode(', ', array_fill(0, count($columns), '?')).')';
@@ -108,16 +109,22 @@ final class BatchUpsert
             $sql = sprintf(
                 'INSERT INTO %s (%s) VALUES %s
                  ON CONFLICT (%s) DO UPDATE SET %s
-                 WHERE %s.%s IS DISTINCT FROM EXCLUDED.%s
+                 WHERE %s
                  RETURNING (xmax = 0) AS was_inserted',
                 $mirrorTable,
                 $columnList,
                 implode(', ', array_fill(0, count($chunk), $placeholders)),
                 implode(', ', array_map(static fn (string $c): string => "\"{$c}\"", $conflictKey)),
                 $assignments,
-                $mirrorTable,
-                $hashColumn,
-                $hashColumn,
+                implode(' OR ', array_map(
+                    static fn (string $column): string => sprintf(
+                        '%s."%s" IS DISTINCT FROM EXCLUDED."%s"',
+                        $mirrorTable,
+                        $column,
+                        $column,
+                    ),
+                    $comparisonColumns,
+                )),
             );
 
             $returned = DB::connection('pgsql')->select($sql, $bindings);

@@ -94,57 +94,59 @@ P1 mirror** (FR-006), and every `*_source_id` column references `source_id`, nev
 
 ### The eight migrations — dependency order (data-model.md §11)
 
-- [ ] T004 `apps/lab/database/migrations/2026_08_28_100000_create_source_question_derived_table.php`
+- [X] T004 `apps/lab/database/migrations/2026_08_28_100000_create_source_question_derived_table.php`
       — per data-model.md §2: both hashes, **`fuzzy_text_hash`** and `media_fingerprint` indexed,
       `stem_embedding` and `full_embedding` as `$table->vector($col, 768)`, `normalizer_version`,
       **`fuzzy_rules_version`** (separate on purpose — the strict hashes do not depend on the fold),
       the two truncation flags, UNIQUE on `question_source_id`. **No trigram index here** — Phase 5
       earns it (FR-008), and `fuzzy_text_hash` gets a **btree, not a GIN** (FR-141, plan.md).
-- [ ] T005 [P] `..._100100_create_source_section_derived_table.php` — data-model.md §3. No embedding
+- [X] T005 [P] `..._100100_create_source_section_derived_table.php` — data-model.md §3. No embedding
       column: adding one before a passage exists is speculation.
-- [ ] T006 [P] `..._100200_create_duplicate_candidates_table.php` — data-model.md §4, including
+- [X] T006 [P] `..._100200_create_duplicate_candidates_table.php` — data-model.md §4, including
       `verdict_attempts`, `verdict_last_error` and `verdict_failed` (FR-123, FR-124), UNIQUE on the
       canonical ordered pair, INDEX on `band` and on (`band`, `verdict_failed`). `hash_match_level`
       admits **`exact` | `formatting` | `orthographic` | NULL** (FR-142).
-- [ ] T007 [P] `..._100300_create_duplicate_clusters_table.php` — data-model.md §5, with
+- [X] T007 [P] `..._100300_create_duplicate_clusters_table.php` — data-model.md §5, with
       `member_count`, **`priority_tier`** (FR-150) and the five **`ai_triage_*`** columns (FR-153),
       and INDEX (`status`, `priority_tier`, `affected_student_count` DESC) so the backlog can never
-      fall back to ordering by `id` (FR-089).
-- [ ] T008 `..._100400_create_duplicate_cluster_members_table.php` — UNIQUE (`duplicate_cluster_id`,
+      fall back to ordering by `id` (FR-089). The `DESC` is delivered by
+      `..._2026_08_29_100000_reindex_duplicate_clusters_backlog_order.php` — Laravel's
+      `$table->index()` cannot express a per-column direction, so the create migration emits all-ASC.
+- [X] T008 `..._100400_create_duplicate_cluster_members_table.php` — UNIQUE (`duplicate_cluster_id`,
       `question_source_id`). Depends on T007.
-- [ ] T009 `..._100500_create_duplicate_reviews_table.php` — data-model.md §7, including
+- [X] T009 `..._100500_create_duplicate_reviews_table.php` — data-model.md §7, including
       `previous_relation_type` / `new_relation_type` (FR-130, FR-131). Depends on T007.
-- [ ] T010 [P] `..._100600_create_duplicate_eval_pairs_table.php` — data-model.md §8, with
+- [X] T010 [P] `..._100600_create_duplicate_eval_pairs_table.php` — data-model.md §8, with
       `label_round` in the UNIQUE key (`a`, `b`, `purpose`, `label_round`) so the doubled subsample is
       a second row (FR-056); **`sample_wave` as a separate indexed column and NOT in the key**
       (FR-050); and the six `ai_*` / revision columns (FR-147, FR-148). **`sample_wave` and
       `label_round` are orthogonal axes** — conflating them would make waves 2 and 3 read as second
       and third labellers and silently corrupt inter-rater agreement (data-model.md §8).
-- [ ] T011 [P] `..._100700_create_duplicate_eval_runs_table.php` — data-model.md §10, including
+- [X] T011 [P] `..._100700_create_duplicate_eval_runs_table.php` — data-model.md §10, including
       `inter_rater_agreement`, `gate_passed`, **`sample_wave`**, **`positive_class_count`**, both
       **precision and recall 95% CI bounds**, and **`expansion_decision`** (FR-061, FR-144, FR-145).
-- [ ] T012 Run `php artisan migrate --env=testing` against `injazedu_lab_test` and confirm all eight
+- [X] T012 Run `php artisan migrate --env=testing` against `injazedu_lab_test` and confirm all eight
       build. **Never** `migrate:fresh`/`refresh`/`reset` against `injazedu_lab` (constitution III).
 
 ### The eight models
 
-- [ ] T013 [P] `apps/lab/app/Models/SourceQuestionDerived.php` — `$connection = 'pgsql'`, vector and
+- [X] T013 [P] `apps/lab/app/Models/SourceQuestionDerived.php` — `$connection = 'pgsql'`, vector and
       timestamp casts, `belongsTo(SourceQuestion, 'question_source_id', 'source_id')`.
-- [ ] T014 [P] `apps/lab/app/Models/SourceSectionDerived.php`
-- [ ] T015 [P] `apps/lab/app/Models/DuplicateCandidate.php` — `llm_issues` cast to array.
-- [ ] T016 [P] `apps/lab/app/Models/DuplicateCluster.php` — `hasMany` members, `hasMany` reviews.
-- [ ] T017 [P] `apps/lab/app/Models/DuplicateClusterMember.php`
-- [ ] T018 [P] `apps/lab/app/Models/DuplicateReview.php`
-- [ ] T019 [P] `apps/lab/app/Models/DuplicateEvalPair.php`
-- [ ] T020 [P] `apps/lab/app/Models/DuplicateEvalRun.php`
+- [X] T014 [P] `apps/lab/app/Models/SourceSectionDerived.php`
+- [X] T015 [P] `apps/lab/app/Models/DuplicateCandidate.php` — `llm_issues` cast to array.
+- [X] T016 [P] `apps/lab/app/Models/DuplicateCluster.php` — `hasMany` members, `hasMany` reviews.
+- [X] T017 [P] `apps/lab/app/Models/DuplicateClusterMember.php`
+- [X] T018 [P] `apps/lab/app/Models/DuplicateReview.php`
+- [X] T019 [P] `apps/lab/app/Models/DuplicateEvalPair.php`
+- [X] T020 [P] `apps/lab/app/Models/DuplicateEvalRun.php`
 
 ### Schema guardrails
 
-- [ ] T021 `apps/lab/tests/Feature/Dedup/ForeignKeyThroughSourceIdTest.php` — a
+- [X] T021 `apps/lab/tests/Feature/Dedup/ForeignKeyThroughSourceIdTest.php` — a
       `duplicate_cluster_members` row joins to a real `source_questions` row **through `source_id`**,
       and a join through the surrogate `id` returns the wrong row or none. **This is the single most
       likely defect in the feature** (data-model.md §1), caught by a test rather than a reviewer.
-- [ ] T022 `apps/lab/tests/Feature/NoPiiInLabSchemaTest.php` — **verify it passes over the eight new
+- [X] T022 `apps/lab/tests/Feature/NoPiiInLabSchemaTest.php` — **verify it passes over the eight new
       tables with no edit** (notes.md N7). Its scan is already table-agnostic and `reviewer_id` /
       `labelled_by` are not on its forbidden list, which names `user_id`, not `*_id`. **Do not edit
       this file** and do not add an exemption; if it fails, that is a finding, not a licence to relax
@@ -250,44 +252,44 @@ duplicates collapse deterministically, with the canonical member chosen by rule.
 **Independent test**: `lab:dedup --step=derive-text` then `--step=hash-cluster` on a clean database
 → 29,142 derived rows, a stable cluster count, and a second run that changes nothing.
 
-- [ ] T035 [US1] `apps/lab/app/Jobs/Dedup/DeriveQuestionTextLayers.php` — chunked and resumable via
+- [X] T035 [US1] `apps/lab/app/Jobs/Dedup/DeriveQuestionTextLayers.php` — chunked and resumable via
       `ResumeCursor`; reads each question with its options **and its `source_media` rows**; applies
       Phase 2's rules; upserts through `BatchUpsert`. Writes `fuzzy_text_hash` and
       `fuzzy_rules_version` **in the same pass** as the strict hashes, for the same reason the media
       fingerprint is (T045): a second pass would let them drift. Runs over **all 29,142** rows
       including soft-deleted ones (FR-020, FR-026).
-- [ ] T036 [US1] `LabDedup --step=derive-text` — wired to T035, recorded in `import_runs` under
+- [X] T036 [US1] `LabDedup --step=derive-text` — wired to T035, recorded in `import_runs` under
       `kind = 'p2_derive_text'`. **Gated on T003.**
-- [ ] T037 [P] [US1] `apps/lab/app/Jobs/Dedup/DeriveSectionTextLayers.php` — the same for
+- [X] T037 [P] [US1] `apps/lab/app/Jobs/Dedup/DeriveSectionTextLayers.php` — the same for
       `source_sections WHERE has_stimulus = true`. Expected to process **zero** rows on this snapshot;
       it **logs the count** rather than assuming it (FR-021).
-- [ ] T038 [US1] Empty-`search_text` handling in T035 — a question normalizing to empty is recorded,
+- [X] T038 [US1] Empty-`search_text` handling in T035 — a question normalizing to empty is recorded,
       **excluded** from hash clustering and candidate generation, and logged as an anomaly rather than
       joining one mega-cluster (FR-027). Measured: zero instances today, so this is defensive.
-- [ ] T039 [US1] `apps/lab/app/Jobs/Dedup/ClusterExactHashMatches.php` — group by
+- [X] T039 [US1] `apps/lab/app/Jobs/Dedup/ClusterExactHashMatches.php` — group by
       `question_with_options_hash` having count > 1 over non-deleted questions; create clusters with
       `relation_type = 'exact_duplicate'`, `status = 'auto'`, `source_layer = 'hash'`; canonical member
       is the **lowest** `question_source_id`, derivable by SQL rather than by holding a whole group in
       memory (FR-022, FR-024).
-- [ ] T040 [US1] `ClusterExactHashMatches` — a stem-only match (text hash equal, options hash
+- [X] T040 [US1] `ClusterExactHashMatches` — a stem-only match (text hash equal, options hash
       differing) is **not** auto-clustered; it becomes a candidate with `hash_match_level = 'formatting'`
       routed to the high band (FR-025).
-- [ ] T040b [US1] `ClusterExactHashMatches` — an **orthographic** match (`fuzzy_text_hash` equal,
+- [X] T040b [US1] `ClusterExactHashMatches` — an **orthographic** match (`fuzzy_text_hash` equal,
       `question_text_hash` differing) is **not** auto-clustered either: it becomes a candidate with
       `hash_match_level = 'orthographic'` routed to the high band, exactly like `formatting`
       (FR-142). **No automatic path may promote it**, and none may assign it
       `relation_type = 'exact_duplicate'`. Skip the whole branch when `fuzzy_fold_enabled` is false.
       Log the count produced — measured expectation is small (~12 stem groups, notes.md N10), and a
       wildly larger number means the fold map is wrong, not that the bank changed.
-- [ ] T041 [US1] `LabDedup --step=hash-cluster` — wired to T039/T040/T040b.
-- [ ] T042 [P] [US1] `apps/lab/tests/Feature/Dedup/HashClusterTest.php` — literal and formatting
+- [X] T041 [US1] `LabDedup --step=hash-cluster` — wired to T039/T040/T040b.
+- [X] T042 [P] [US1] `apps/lab/tests/Feature/Dedup/HashClusterTest.php` — literal and formatting
       duplicates are found with **no model**; the canonical member is the lowest id and is stable; a
       stem-only match does not auto-cluster; and **an orthographic-only pair appears in no cluster
       produced by any automatic step and carries no `exact_duplicate` relation** (FR-143b, SC-002).
-- [ ] T043 [P] [US1] `apps/lab/tests/Validation/Dedup/DerivedCoverageTest.php` (MirrorValidation,
+- [X] T043 [P] [US1] `apps/lab/tests/Validation/Dedup/DerivedCoverageTest.php` (MirrorValidation,
       read-only) — every one of the 29,142 questions has exactly one derived row with a non-null
       `search_text` and a recorded `normalizer_version`.
-- [ ] T044 [US1] `apps/lab/tests/Feature/Dedup/HashClusterIdempotencyTest.php` — a second
+- [X] T044 [US1] `apps/lab/tests/Feature/Dedup/HashClusterIdempotencyTest.php` — a second
       `--step=hash-cluster` produces an identical cluster count, member count and canonical member
       (FR-028).
 
@@ -308,19 +310,19 @@ cluster.
 
 **Enforcement 2 of 3 is T057; enforcement 3 of 3 is T077.** They live in code later phases create.
 
-- [ ] T045 [US2] `DeriveQuestionTextLayers` — compute `media_fingerprint` **in the same pass as the
+- [X] T045 [US2] `DeriveQuestionTextLayers` — compute `media_fingerprint` **in the same pass as the
       hashes** from `source_media WHERE type='image' AND attach_level='question'`, ordered by
       `source_id`. A second pass would be free to write and would let the two drift. **Video is
       excluded** and NULL when the question carries no image (FR-017, FR-032, plan.md decision 3).
-- [ ] T046 [US2] `ClusterExactHashMatches` — **split every hash group by `media_fingerprint` before
+- [X] T046 [US2] `ClusterExactHashMatches` — **split every hash group by `media_fingerprint` before
       clustering** (FR-023). Members with differing fingerprints never enter the same cluster; the
       cross-fingerprint pairs are written to `duplicate_candidates` with
       `media_relation = 'different_media'` for a human instead (FR-029 – FR-031).
-- [ ] T047 [P] [US2] `apps/lab/tests/Feature/Dedup/MediaBoundaryTest.php` — the shared boundary suite,
+- [X] T047 [P] [US2] `apps/lab/tests/Feature/Dedup/MediaBoundaryTest.php` — the shared boundary suite,
       **grown in T058 and T078**: identical text + different images is a candidate, is in no
       hash cluster, and carries `different_media`. A question with no media fingerprints NULL and
       relates as `no_media`.
-- [ ] T048 [P] [US2] `apps/lab/tests/Feature/Dedup/MediaFingerprintOrderTest.php` — the four
+- [X] T048 [P] [US2] `apps/lab/tests/Feature/Dedup/MediaFingerprintOrderTest.php` — the four
       two-image questions are why the fingerprint hashes a list: two images in a different attachment
       order still fingerprint identically, and a genuinely different image set does not.
 
